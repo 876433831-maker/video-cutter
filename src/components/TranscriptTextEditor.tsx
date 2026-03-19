@@ -1,31 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditReason, EditSegment } from "@/lib/video-edit-types";
+import type { EditSegment } from "@/lib/video-edit-types";
+import {
+  buildSegmentGroups,
+  getSuggestionStats,
+  reasonLabels,
+  type SegmentGroup
+} from "@/lib/transcript-editor";
 
 type TranscriptTextEditorProps = {
   segments: EditSegment[];
   onChange: (segments: EditSegment[]) => void;
-};
-
-type SegmentGroup = {
-  id: string;
-  reason: EditReason;
-  segments: EditSegment[];
-  start: number;
-  end: number;
-  text: string;
-  removedCount: number;
-  suggestedRemoval: boolean;
-};
-
-const reasonLabels: Record<EditReason, string> = {
-  content: "正文",
-  pause: "停顿",
-  filler: "语气词",
-  breath: "气口",
-  noise: "噪音",
-  manual: "手动"
+  showSuggestionControls?: boolean;
 };
 
 function formatDuration(seconds: number) {
@@ -50,44 +37,10 @@ function chunkSegments<T>(segments: T[], size: number) {
   return chunks;
 }
 
-function buildGroups(segments: EditSegment[]) {
-  const groups = new Map<string, EditSegment[]>();
-
-  segments.forEach((segment) => {
-    const key = segment.groupId || segment.id;
-    const current = groups.get(key) ?? [];
-    current.push(segment);
-    groups.set(key, current);
-  });
-
-  return Array.from(groups.entries())
-    .map(([id, groupedSegments]) => {
-      const orderedSegments = [...groupedSegments].sort(
-        (left, right) => (left.unitIndex ?? 0) - (right.unitIndex ?? 0)
-      );
-      const first = orderedSegments[0];
-      const last = orderedSegments[orderedSegments.length - 1];
-
-      return {
-        id,
-        reason: first.reason,
-        segments: orderedSegments,
-        start: first.start,
-        end: last.end,
-        text: orderedSegments.map((segment) => segment.text).join(""),
-        removedCount: orderedSegments.filter((segment) => segment.action === "remove")
-          .length,
-        suggestedRemoval: orderedSegments.some(
-          (segment) => segment.suggestedAction === "remove"
-        )
-      } satisfies SegmentGroup;
-    })
-    .sort((left, right) => left.start - right.start);
-}
-
 export default function TranscriptTextEditor({
   segments,
-  onChange
+  onChange,
+  showSuggestionControls = true
 }: TranscriptTextEditorProps) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [showRemovedOnly, setShowRemovedOnly] = useState(false);
@@ -98,18 +51,12 @@ export default function TranscriptTextEditor({
   } | null>(null);
   const isDraggingRef = useRef(false);
   const suppressClickRef = useRef(false);
-  const groupedSegments = useMemo(() => buildGroups(segments), [segments]);
-
-  const suggestedRemovalCount = groupedSegments.filter((group) => group.suggestedRemoval).length;
-  const appliedSuggestedRemovalCount = groupedSegments.filter(
-    (group) => group.suggestedRemoval && group.removedCount === group.segments.length
-  ).length;
+  const groupedSegments = useMemo(() => buildSegmentGroups(segments), [segments]);
+  const { suggestedRemovalCount, appliedSuggestedRemovalCount, allSuggestionsApplied } =
+    useMemo(() => getSuggestionStats(groupedSegments), [groupedSegments]);
   const removedCount = groupedSegments.filter(
     (group) => group.removedCount === group.segments.length
   ).length;
-  const allSuggestionsApplied =
-    suggestedRemovalCount > 0 &&
-    appliedSuggestedRemovalCount === suggestedRemovalCount;
 
   const filteredGroups = useMemo(() => {
     return groupedSegments.filter((group) => {
@@ -320,23 +267,29 @@ export default function TranscriptTextEditor({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-              建议删除 {suggestedRemovalCount} 行 · 已应用 {appliedSuggestedRemovalCount} 行
+        {showSuggestionControls ? (
+          <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+                建议删除 {suggestedRemovalCount} 行 · 已应用 {appliedSuggestedRemovalCount} 行
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleSuggested}
+                className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                {allSuggestionsApplied ? "恢复建议片段" : "删除建议片段"}
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleSuggested}
-              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              {allSuggestionsApplied ? "恢复建议片段" : "删除建议片段"}
-            </button>
+            <p className="text-sm text-slate-500">点字删除，拖字批量删。</p>
           </div>
-
-          <p className="text-sm text-slate-500">点字删除，拖字批量删。</p>
-        </div>
+        ) : (
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            点字删除，拖字批量删。
+          </div>
+        )}
 
         <div className="max-h-[720px] overflow-y-auto pr-1">
           {filteredGroups.length === 0 ? (
