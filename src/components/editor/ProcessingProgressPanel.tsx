@@ -21,6 +21,16 @@ export default function ProcessingProgressPanel({
   ready,
   errorMessage
 }: ProcessingProgressPanelProps) {
+  if (!progress && !errorMessage) {
+    return ready ? null : (
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          生成字幕后，这里显示导出进度。
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex h-full flex-col gap-4">
@@ -53,9 +63,7 @@ export default function ProcessingProgressPanel({
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
             {errorMessage
               ? `上一次导出失败：${errorMessage}`
-              : ready
-                ? "导出尚未开始，点击下方导出按钮后这里显示真实进度。"
-                : "生成字幕后，这里显示真实处理进度。"}
+              : "导出尚未开始，点击导出按钮后这里显示真实进度。"}
           </div>
         )}
       </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AISuggestionPanel from "@/components/editor/AISuggestionPanel";
 import PreviewMonitor from "@/components/editor/PreviewMonitor";
 import VideoProcessingPanel from "@/components/editor/VideoProcessingPanel";
 import { buildSegmentGroups, getSuggestionStats } from "@/lib/transcript-editor";
@@ -215,13 +214,17 @@ export default function EditorWorkspace() {
           transcriptTextCount={transcriptTextCount}
           keptCount={keptCount}
           removedCount={removedCount}
+          suggestedRemovalCount={suggestedRemovalCount}
+          appliedSuggestedRemovalCount={appliedSuggestedRemovalCount}
+          allSuggestionsApplied={allSuggestionsApplied}
           segments={editSegments}
           onSegmentsChange={setEditableSegments}
           onGenerateTranscript={handleGenerateTranscript}
+          onToggleSuggested={handleToggleSuggested}
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <VideoProcessingPanel
           disabled={!result}
           subtitleFontSize={subtitleFontSize}
@@ -232,21 +235,11 @@ export default function EditorWorkspace() {
           onVolumeGainDbChange={setVolumeGainDb}
         />
 
-        <AISuggestionPanel
-          suggestedRemovalCount={suggestedRemovalCount}
-          appliedSuggestedRemovalCount={appliedSuggestedRemovalCount}
-          allSuggestionsApplied={allSuggestionsApplied}
-          disabled={!result}
-          onToggleSuggested={handleToggleSuggested}
+        <ExportPanel
+          uploadedVideo={uploadedVideo}
+          segments={editSegments}
+          subtitleFontSize={subtitleFontSize}
         />
-
-        <div className="lg:col-span-2 xl:col-span-2">
-          <ExportPanel
-            uploadedVideo={uploadedVideo}
-            segments={editSegments}
-            subtitleFontSize={subtitleFontSize}
-          />
-        </div>
       </div>
     </div>
   );

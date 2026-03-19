@@ -25,9 +25,13 @@ type TranscriptWorkflowPanelProps = {
   transcriptTextCount: number;
   keptCount: number;
   removedCount: number;
+  suggestedRemovalCount: number;
+  appliedSuggestedRemovalCount: number;
+  allSuggestionsApplied: boolean;
   segments: TranscriptGenerationResult["editSegments"];
   onSegmentsChange: (segments: TranscriptGenerationResult["editSegments"]) => void;
   onGenerateTranscript: () => void;
+  onToggleSuggested: () => void;
 };
 
 function formatDuration(seconds: number | null) {
@@ -51,9 +55,13 @@ export default function TranscriptWorkflowPanel({
   transcriptTextCount,
   keptCount,
   removedCount,
+  suggestedRemovalCount,
+  appliedSuggestedRemovalCount,
+  allSuggestionsApplied,
   segments,
   onSegmentsChange,
-  onGenerateTranscript
+  onGenerateTranscript,
+  onToggleSuggested
 }: TranscriptWorkflowPanelProps) {
   const providerLabel =
     transcribeStatus?.provider === "volcengine" ? "豆包语音识别" : "本地回退";
@@ -77,6 +85,28 @@ export default function TranscriptWorkflowPanel({
           keptCount={keptCount}
           removedCount={removedCount}
         />
+
+        {result ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                AI 建议 {suggestedRemovalCount} 段
+              </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                已应用 {appliedSuggestedRemovalCount} 段
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={suggestedRemovalCount === 0}
+              onClick={onToggleSuggested}
+              className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {allSuggestionsApplied ? "恢复 AI 建议" : "应用 AI 建议"}
+            </button>
+          </div>
+        ) : null}
 
         {transcribeStatus ? (
           <div

@@ -67,35 +67,37 @@ export default function VideoProcessingPanel({
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-slate-400">视频处理</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-950">预览与成片共用的处理参数</h3>
+          <h3 className="mt-1 text-lg font-semibold text-slate-950">倍速、音量和字幕大小</h3>
         </div>
 
-        <ControlGroup
-          title="字幕大小"
-          values={subtitleSizeOptions}
-          currentValue={subtitleFontSize}
-          disabled={disabled}
-          formatter={(value) => `${value}px`}
-          onChange={onSubtitleFontSizeChange}
-        />
+        <div className="grid gap-4 xl:grid-cols-3">
+          <ControlGroup
+            title="字幕大小"
+            values={subtitleSizeOptions}
+            currentValue={subtitleFontSize}
+            disabled={disabled}
+            formatter={(value) => `${value}px`}
+            onChange={onSubtitleFontSizeChange}
+          />
 
-        <ControlGroup
-          title="播放倍速"
-          values={playbackRateOptions}
-          currentValue={playbackRate}
-          disabled={disabled}
-          formatter={(value) => `${value}x`}
-          onChange={onPlaybackRateChange}
-        />
+          <ControlGroup
+            title="播放倍速"
+            values={playbackRateOptions}
+            currentValue={playbackRate}
+            disabled={disabled}
+            formatter={(value) => `${value}x`}
+            onChange={onPlaybackRateChange}
+          />
 
-        <ControlGroup
-          title="音量增益"
-          values={volumeGainOptions}
-          currentValue={volumeGainDb}
-          disabled={disabled}
-          formatter={(value) => `+${value}dB`}
-          onChange={onVolumeGainDbChange}
-        />
+          <ControlGroup
+            title="音量增益"
+            values={volumeGainOptions}
+            currentValue={volumeGainDb}
+            disabled={disabled}
+            formatter={(value) => `+${value}dB`}
+            onChange={onVolumeGainDbChange}
+          />
+        </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           静音片段自动压低背景音：<span className="font-medium text-slate-900">已启用</span>
