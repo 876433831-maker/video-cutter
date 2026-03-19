@@ -9,17 +9,8 @@ import {
   updateExportJob
 } from "@/lib/export-jobs";
 import { exportEditedVideo, getExportCapabilities } from "@/lib/export-video";
+import { buildOutputFileNameFromSegments } from "@/lib/video-title";
 import type { EditSegment, ExportMode, SubtitleFontSize } from "@/lib/video-edit-types";
-
-function buildOutputName(fileName: string) {
-  const dotIndex = fileName.lastIndexOf(".");
-
-  if (dotIndex === -1) {
-    return `${fileName}-edited.mp4`;
-  }
-
-  return `${fileName.slice(0, dotIndex)}-edited.mp4`;
-}
 
 function getFfmpegStatus() {
   try {
@@ -97,7 +88,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "video/mp4",
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(buildOutputName(job.fileName))}"`
+        "Content-Disposition": `attachment; filename="export.mp4"; filename*=UTF-8''${encodeURIComponent(job.fileName)}`
       }
     });
   }
@@ -115,7 +106,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const { file, segments, subtitleFontSize, exportMode } = parseExportRequest(formData);
-    const job = createExportJob(file.name);
+    const job = createExportJob(buildOutputFileNameFromSegments(segments, file.name));
 
     void exportEditedVideo({
       file,

@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import ExportSettingsPanel from "@/components/editor/ExportSettingsPanel";
 import ProcessingProgressPanel from "@/components/editor/ProcessingProgressPanel";
-import type { EditSegment, SubtitleFontSize, UploadedVideo } from "@/lib/video-edit-types";
+import {
+  buildOutputFileNameFromSegments,
+  buildVideoTitleFromSegments
+} from "@/lib/video-title";
+import type {
+  EditSegment,
+  ExportMode,
+  SubtitleFontSize,
+  UploadedVideo
+} from "@/lib/video-edit-types";
 
 type ExportPanelProps = {
   uploadedVideo: UploadedVideo | null;
@@ -52,21 +61,12 @@ function formatTimer(milliseconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(remainSeconds).padStart(2, "0")}`;
 }
 
-function buildOutputFileName(fileName: string) {
-  const dotIndex = fileName.lastIndexOf(".");
-
-  if (dotIndex === -1) {
-    return `${fileName}-edited.mp4`;
-  }
-
-  return `${fileName.slice(0, dotIndex)}-edited.mp4`;
-}
-
 export default function ExportPanel({
   uploadedVideo,
   segments,
   subtitleFontSize
 }: ExportPanelProps) {
+  const [selectedExportMode, setSelectedExportMode] = useState<ExportMode>("final");
   const [isExporting, setIsExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean | null>(null);
@@ -87,6 +87,14 @@ export default function ExportPanel({
         0
       ),
     [keptSegments]
+  );
+  const outputTitle = useMemo(
+    () => buildVideoTitleFromSegments(segments, uploadedVideo?.fileName),
+    [segments, uploadedVideo?.fileName]
+  );
+  const outputFileName = useMemo(
+    () => buildOutputFileNameFromSegments(segments, uploadedVideo?.fileName),
+    [segments, uploadedVideo?.fileName]
   );
 
   useEffect(() => {
@@ -167,7 +175,7 @@ export default function ExportPanel({
           const downloadUrl = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = downloadUrl;
-          link.download = buildOutputFileName(uploadedVideo?.fileName ?? "output.mp4");
+          link.download = outputFileName;
           document.body.appendChild(link);
           link.click();
           link.remove();
@@ -206,13 +214,14 @@ export default function ExportPanel({
     return () => {
       window.clearInterval(timer);
     };
-  }, [exportStartedAt, isExporting, jobId, uploadedVideo?.fileName]);
+  }, [exportStartedAt, isExporting, jobId, outputFileName]);
 
-  async function handleExport() {
+  async function handleExport(exportMode: ExportMode) {
     if (!uploadedVideo) {
       return;
     }
 
+    setSelectedExportMode(exportMode);
     setIsExporting(true);
     setErrorMessage("");
     setExportStartedAt(Date.now());
@@ -227,7 +236,7 @@ export default function ExportPanel({
       formData.append("file", uploadedVideo.sourceFile);
       formData.append("segments", JSON.stringify(segments));
       formData.append("subtitleFontSize", String(subtitleFontSize));
-      formData.append("exportMode", "final");
+      formData.append("exportMode", exportMode);
 
       const response = await fetch("/api/export", {
         method: "POST",
@@ -259,27 +268,50 @@ export default function ExportPanel({
     <section className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-slate-400">最终导出</p>
-          <h2 className="mt-1 text-lg font-semibold text-slate-950">导出成片</h2>
+          <p className="text-sm text-slate-400">导出</p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">
+            {selectedExportMode === "fast" ? "快速导出" : "导出成片"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">{outputTitle}</p>
+          <p className="mt-1 text-xs text-slate-400">文件名：{outputFileName}</p>
         </div>
 
-        <button
-          type="button"
-          disabled={
-            !uploadedVideo ||
-            keptSegments.length === 0 ||
-            isExporting ||
-            ffmpegAvailable === false
-          }
-          onClick={handleExport}
-          className="rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          {!uploadedVideo
-            ? "请先上传视频"
-            : isExporting
-              ? "导出中..."
-              : "导出成片"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={
+              !uploadedVideo ||
+              keptSegments.length === 0 ||
+              isExporting ||
+              ffmpegAvailable === false
+            }
+            onClick={() => handleExport("fast")}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            {!uploadedVideo
+              ? "请先上传视频"
+              : isExporting && selectedExportMode === "fast"
+                ? "快速导出中..."
+                : "快速导出"}
+          </button>
+          <button
+            type="button"
+            disabled={
+              !uploadedVideo ||
+              keptSegments.length === 0 ||
+              isExporting ||
+              ffmpegAvailable === false
+            }
+            onClick={() => handleExport("final")}
+            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {!uploadedVideo
+              ? "请先上传视频"
+              : isExporting && selectedExportMode === "final"
+                ? "导出中..."
+                : "导出成片"}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -287,7 +319,7 @@ export default function ExportPanel({
           保留 {keptSegments.length} 段
         </span>
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700">
-          预计 {formatDuration(totalOutputSeconds)}
+          成片 {formatDuration(totalOutputSeconds)}
         </span>
         <span
           className={`rounded-full px-3 py-1.5 text-sm ${
@@ -297,14 +329,17 @@ export default function ExportPanel({
           }`}
         >
           {ffmpegAvailable
-            ? capabilities?.hardwareAccelerated
-              ? "硬件编码 + 硬字幕"
-              : "CPU 编码 + 硬字幕"
+            ? selectedExportMode === "fast"
+              ? "快速编码"
+              : capabilities?.hardwareAccelerated
+                ? "硬件编码 + 硬字幕"
+                : "CPU 编码 + 硬字幕"
             : "ffmpeg 未就绪"}
         </span>
       </div>
 
       <ExportSettingsPanel
+        exportMode={selectedExportMode}
         subtitleFontSize={subtitleFontSize}
         capabilities={capabilities}
       />
