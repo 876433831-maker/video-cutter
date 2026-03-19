@@ -36,6 +36,11 @@ export default function ProcessingProgressPanel({
             <p className="mt-1 text-xs text-slate-500">
               {progress ? `已等待 ${formatTimer(progress.elapsedMs)}` : "请调整后重试"}
             </p>
+            {progress ? (
+              <p className="mt-1 text-[11px] text-slate-400">
+                这是导出阶段进度，不是剩余时间预测。
+              </p>
+            ) : null}
           </div>
 
           {progress ? (

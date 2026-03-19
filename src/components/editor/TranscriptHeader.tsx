@@ -14,21 +14,19 @@ export default function TranscriptHeader({
   onGenerate
 }: TranscriptHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div className="flex items-start gap-3">
         <div>
           <p className="text-xs font-medium tracking-[0.12em] text-slate-400">字幕与粗剪</p>
-          <h2 className="mt-1 text-2xl font-semibold leading-tight text-slate-950">
-            逐字删片
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">右侧编辑，左侧实时预览</p>
+          <h2 className="mt-1 text-lg font-semibold leading-tight text-slate-950">逐字删片</h2>
+          <p className="mt-0.5 text-xs text-slate-400">右侧编辑，左侧实时预览</p>
         </div>
         <HelpPopover
           title="字幕编辑说明"
           items={[
-            "点击生成字幕后会调用当前转写接口。",
+            "上传视频后会自动调用当前转写接口。",
             "支持逐字删除、拖选批量删除和整行恢复。",
-            "不改变业务流程，只重构页面结构。"
+            "需要时仍可手动重新生成字幕。"
           ]}
         />
       </div>
@@ -37,7 +35,7 @@ export default function TranscriptHeader({
         type="button"
         disabled={!hasVideo || isGenerating}
         onClick={onGenerate}
-        className="rounded-full bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+        className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
       >
         {!hasVideo
           ? "请先上传视频"
@@ -45,7 +43,7 @@ export default function TranscriptHeader({
             ? "生成中..."
             : hasResult
               ? "重新生成字幕"
-              : "生成字幕"}
+              : "等待自动生成"}
       </button>
     </div>
   );

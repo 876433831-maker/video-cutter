@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import HelpPopover from "@/components/HelpPopover";
+import { composeSegmentText } from "@/lib/transcript-editor";
 import type {
   EditSegment,
   SubtitleFontSize,
@@ -47,14 +48,21 @@ function formatDuration(seconds: number | null) {
 }
 
 function wrapPreviewSubtitle(text: string) {
-  const chars = Array.from(text.trim());
-  const lines: string[] = [];
+  const lines = text
+    .trim()
+    .split("\n")
+    .flatMap((rawLine) => {
+      const chars = Array.from(rawLine.trim());
+      const wrappedLines: string[] = [];
 
-  for (let index = 0; index < chars.length; index += 15) {
-    lines.push(chars.slice(index, index + 15).join(""));
-  }
+      for (let index = 0; index < chars.length; index += 14) {
+        wrappedLines.push(chars.slice(index, index + 14).join(""));
+      }
 
-  return lines.slice(0, 3).join("\n");
+      return wrappedLines.length > 0 ? wrappedLines : [""];
+    });
+
+  return lines.slice(0, 2).join("\n");
 }
 
 export default function PreviewWorkspace({
@@ -149,11 +157,10 @@ export default function PreviewWorkspace({
       return activeSegment.text.trim();
     }
 
-    return keptSegments
-      .filter((segment) => segment.groupId === activeSegment.groupId)
-      .map((segment) => segment.text)
-      .join("")
-      .trim();
+    return composeSegmentText(
+      keptSegments.filter((segment) => segment.groupId === activeSegment.groupId),
+      { respectBreaks: true }
+    ).trim();
   }, [currentTime, keptSegments]);
 
   const wrappedSubtitleText = useMemo(
@@ -390,7 +397,7 @@ export default function PreviewWorkspace({
                   onSubtitleFontSizeChange
                 )}
                 <div className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-[11px] text-slate-600 shadow-sm backdrop-blur">
-                  静音片段自动压低背景音：已启用
+                  停顿/气口片段保留时自动降音：已启用
                 </div>
               </div>
             ) : (
@@ -434,11 +441,10 @@ export default function PreviewWorkspace({
           )}
 
           {wrappedSubtitleText ? (
-            <div className="pointer-events-none absolute bottom-8 left-1/2 z-20 w-[76%] max-w-[360px] -translate-x-1/2">
-              <div className="rounded-[16px] bg-black/78 px-4 py-3 text-center shadow-sm">
-                <div className="text-[11px] tracking-wide text-white/45">字幕预览</div>
+            <div className="pointer-events-none absolute bottom-8 left-1/2 z-20 w-fit max-w-[300px] -translate-x-1/2">
+              <div className="inline-block rounded-[12px] bg-black px-3 py-2 text-center shadow-sm">
                 <div
-                  className="mt-1 font-medium text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.4)]"
+                  className="font-medium leading-snug text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.4)]"
                   style={{ fontSize: `${subtitleFontSize}px` }}
                 >
                   {wrappedSubtitleText}

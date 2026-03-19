@@ -66,6 +66,14 @@ export default function TranscriptWorkflowPanel({
   const providerLabel =
     transcribeStatus?.provider === "volcengine" ? "豆包语音识别" : "本地回退";
 
+  const environmentLabel = transcribeStatus
+    ? transcribeStatus.ffmpegAvailable
+      ? transcribeStatus.minimaxAvailable
+        ? "环境正常：豆包转写 + MiniMax 粗剪"
+        : "环境正常：本地回退转写"
+      : "环境未就绪"
+    : "";
+
   return (
     <section className="h-fit rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-[72px]">
       <div className="flex flex-col gap-3">
@@ -76,54 +84,6 @@ export default function TranscriptWorkflowPanel({
           onGenerate={onGenerateTranscript}
         />
 
-        <TranscriptSummaryBar
-          fileName={uploadedVideo?.fileName}
-          durationLabel={formatDuration(uploadedVideo?.duration ?? null)}
-          subtitleStatus={result ? "已生成" : "待生成"}
-          providerLabel={providerLabel}
-          transcriptTextCount={transcriptTextCount}
-          keptCount={keptCount}
-          removedCount={removedCount}
-        />
-
-        {result ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
-                AI 建议 {suggestedRemovalCount} 段
-              </span>
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
-                已应用 {appliedSuggestedRemovalCount} 段
-              </span>
-            </div>
-
-            <button
-              type="button"
-              disabled={suggestedRemovalCount === 0}
-              onClick={onToggleSuggested}
-              className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {allSuggestionsApplied ? "恢复 AI 建议" : "应用 AI 建议"}
-            </button>
-          </div>
-        ) : null}
-
-        {transcribeStatus ? (
-          <div
-            className={`rounded-[18px] border px-4 py-2.5 text-sm ${
-              transcribeStatus.ffmpegAvailable
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-amber-200 bg-amber-50 text-amber-700"
-            }`}
-          >
-            {transcribeStatus.ffmpegAvailable
-              ? transcribeStatus.minimaxAvailable
-                ? "环境正常：豆包转写 + MiniMax 粗剪。"
-                : "环境正常：当前使用本地回退转写。"
-              : "环境未就绪：缺少 ffmpeg 或转写模型。"}
-          </div>
-        ) : null}
-
         {errorMessage ? (
           <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
             {errorMessage}
@@ -131,19 +91,87 @@ export default function TranscriptWorkflowPanel({
         ) : null}
 
         {!uploadedVideo ? (
-          <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+          <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center text-sm text-slate-500">
             上传视频后，右侧出现字幕与粗剪编辑区。
           </div>
         ) : !result ? (
-          <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-sm text-slate-500">
-            先生成字幕，再开始逐字删片和时间轴粗剪。
-          </div>
+          <>
+            <TranscriptSummaryBar
+              fileName={uploadedVideo?.fileName}
+              durationLabel={formatDuration(uploadedVideo?.duration ?? null)}
+              subtitleStatus="待生成"
+              providerLabel={providerLabel}
+              transcriptTextCount={transcriptTextCount}
+              keptCount={keptCount}
+              removedCount={removedCount}
+            />
+
+            {transcribeStatus ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1.5 text-xs ${
+                    transcribeStatus.ffmpegAvailable
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border border-amber-200 bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {environmentLabel}
+                </span>
+              </div>
+            ) : null}
+
+            <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm text-slate-500">
+              {isGenerating
+                ? "上传完成，正在自动生成字幕。"
+                : "上传完成后会自动生成字幕，也可以手动重新生成。"}
+            </div>
+          </>
         ) : (
-          <TranscriptTextEditor
-            segments={segments}
-            onChange={onSegmentsChange}
-            showSuggestionControls={false}
-          />
+          <>
+            <TranscriptTextEditor
+              segments={segments}
+              onChange={onSegmentsChange}
+              showSuggestionControls={false}
+            />
+
+            <TranscriptSummaryBar
+              fileName={uploadedVideo?.fileName}
+              durationLabel={formatDuration(uploadedVideo?.duration ?? null)}
+              subtitleStatus="已生成"
+              providerLabel={providerLabel}
+              transcriptTextCount={transcriptTextCount}
+              keptCount={keptCount}
+              removedCount={removedCount}
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+                AI 建议 {suggestedRemovalCount} 段
+              </span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+                已应用 {appliedSuggestedRemovalCount} 段
+              </span>
+              <button
+                type="button"
+                disabled={suggestedRemovalCount === 0}
+                onClick={onToggleSuggested}
+                className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {allSuggestionsApplied ? "恢复建议" : "应用建议"}
+              </button>
+              {transcribeStatus ? (
+                <span
+                  className={`rounded-full px-3 py-1.5 text-xs ${
+                    transcribeStatus.ffmpegAvailable
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border border-amber-200 bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {environmentLabel}
+                </span>
+              ) : null}
+            </div>
+          </>
         )}
       </div>
     </section>

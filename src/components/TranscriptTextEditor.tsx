@@ -27,16 +27,6 @@ function formatGapDuration(seconds: number) {
   return `${seconds.toFixed(1)}s`;
 }
 
-function chunkSegments<T>(segments: T[], size: number) {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < segments.length; index += size) {
-    chunks.push(segments.slice(index, index + size));
-  }
-
-  return chunks;
-}
-
 export default function TranscriptTextEditor({
   segments,
   onChange,
@@ -138,6 +128,13 @@ export default function TranscriptTextEditor({
     }));
   }
 
+  function handleToggleBreakAfter(segment: EditSegment) {
+    updateSegmentsByIds([segment.id], (currentSegment) => ({
+      ...currentSegment,
+      breakAfter: !currentSegment.breakAfter
+    }));
+  }
+
   function getSelectionRange(groupId: string) {
     if (!dragSelection || dragSelection.groupId !== groupId) {
       return null;
@@ -233,14 +230,14 @@ export default function TranscriptTextEditor({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-400">文字剪辑面板</p>
-            <h3 className="mt-2 text-xl font-semibold text-slate-900">逐字删片段</h3>
+            <p className="text-xs text-slate-400">文字剪辑面板</p>
+            <h3 className="mt-1 text-lg font-semibold text-slate-900">逐字删片段</h3>
           </div>
-          <div className="text-sm text-slate-500">已删除 {removedCount} 行</div>
+          <div className="text-xs text-slate-500">已删除 {removedCount} 行</div>
         </div>
 
         <div className="flex flex-col gap-3 xl:flex-row">
-          <label className="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <label className="flex min-w-0 flex-1 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
             <span className="mr-3 text-slate-400">⌕</span>
             <input
               value={searchKeyword}
@@ -254,7 +251,7 @@ export default function TranscriptTextEditor({
             <button
               type="button"
               onClick={() => setShowAuxiliaryRows((value) => !value)}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+              className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
                 showAuxiliaryRows
                   ? "bg-slate-900 text-white"
                   : "border border-slate-200 bg-white text-slate-700"
@@ -265,7 +262,7 @@ export default function TranscriptTextEditor({
             <button
               type="button"
               onClick={() => setShowRemovedOnly((value) => !value)}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+              className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
                 showRemovedOnly
                   ? "bg-slate-900 text-white"
                   : "border border-slate-200 bg-white text-slate-700"
@@ -276,7 +273,7 @@ export default function TranscriptTextEditor({
             <button
               type="button"
               onClick={handleRestoreAll}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               重置
             </button>
@@ -302,12 +299,12 @@ export default function TranscriptTextEditor({
             <p className="text-sm text-slate-500">点字删除，拖字批量删。</p>
           </div>
         ) : (
-          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-            点字删除，拖字批量删。
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500">
+            点字删除，拖字批量删；选中某个字后按 Enter 可在这里断行。
           </div>
         )}
 
-        <div className="max-h-[680px] overflow-y-auto pr-1">
+        <div className="max-h-[740px] overflow-y-auto pr-1">
           {filteredGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-sm text-slate-500">
               没有匹配的字幕片段。
@@ -319,7 +316,7 @@ export default function TranscriptTextEditor({
                 const isPauseLike = group.reason === "pause" || group.reason === "breath";
                 const fullyRemoved = group.removedCount === group.segments.length;
                 const selectionRange = getSelectionRange(group.id);
-                const segmentRows = chunkSegments(group.segments, 15);
+                const segmentRows = [group.segments];
 
                 return (
                   <div
@@ -359,25 +356,16 @@ export default function TranscriptTextEditor({
                               ) : null}
                             </div>
 
-                            {isPauseLike ? (
-                              <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-                                <span className="truncate">停顿</span>
-                                <span className="text-slate-300">·</span>
-                                <span className="truncate">这段会在粗剪和导出时被跳过</span>
-                              </div>
-                            ) : (
-                              <div className="mt-3 space-y-2">
-                                <div className="text-xs text-slate-400">
-                                  拖动选中字后松开，即可删除；再次拖选已删除字可恢复。
-                                </div>
-                                <div className="space-y-1 border-b-2 border-dashed border-sky-200 pb-2">
+                            {isPauseLike ? null : (
+                              <div className="mt-2">
+                                <div className="overflow-x-auto border-b-2 border-dashed border-sky-200 pb-2">
                                   {segmentRows.map((segmentRow, rowIndex) => (
                                     <div
                                       key={`${group.id}-row-${rowIndex}`}
-                                      className="flex min-h-10 flex-wrap gap-x-0.5"
+                                      className="inline-flex min-h-8 min-w-max flex-nowrap gap-x-0.5"
                                     >
                                       {segmentRow.map((segment, columnIndex) => {
-                                        const segmentIndex = rowIndex * 15 + columnIndex;
+                                        const segmentIndex = columnIndex;
                                         const isSelected =
                                           selectionRange &&
                                           segmentIndex >= selectionRange.start &&
@@ -402,13 +390,19 @@ export default function TranscriptTextEditor({
 
                                               handleToggleCharacter(segment);
                                             }}
-                                            className={`rounded px-0.5 text-[20px] leading-9 transition ${
+                                            onKeyDown={(event) => {
+                                              if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                handleToggleBreakAfter(segment);
+                                              }
+                                            }}
+                                            className={`rounded px-0.5 text-[15px] leading-7 transition ${
                                               isSelected
                                                 ? "bg-sky-100 text-slate-900"
                                                 : segment.action === "remove"
                                                   ? "bg-slate-200 text-slate-400 line-through"
                                                   : "text-slate-900 hover:bg-slate-100"
-                                            }`}
+                                            } ${segment.breakAfter ? "mr-2 border-r border-slate-300 pr-2" : ""}`}
                                           >
                                             {segment.text === " " ? "\u00A0" : segment.text}
                                           </button>
