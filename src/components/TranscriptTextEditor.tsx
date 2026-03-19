@@ -44,6 +44,7 @@ export default function TranscriptTextEditor({
 }: TranscriptTextEditorProps) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [showRemovedOnly, setShowRemovedOnly] = useState(false);
+  const [showAuxiliaryRows, setShowAuxiliaryRows] = useState(false);
   const [dragSelection, setDragSelection] = useState<{
     groupId: string;
     startIndex: number;
@@ -65,10 +66,14 @@ export default function TranscriptTextEditor({
         group.text.includes(searchKeyword) ||
         reasonLabels[group.reason].includes(searchKeyword);
       const matchedRemovedState = !showRemovedOnly || group.removedCount > 0;
+      const matchedAuxiliaryState =
+        showAuxiliaryRows ||
+        !["pause", "breath", "noise"].includes(group.reason) ||
+        group.removedCount > 0;
 
-      return matchedKeyword && matchedRemovedState;
+      return matchedKeyword && matchedRemovedState && matchedAuxiliaryState;
     });
-  }, [groupedSegments, searchKeyword, showRemovedOnly]);
+  }, [groupedSegments, searchKeyword, showAuxiliaryRows, showRemovedOnly]);
 
   function updateSegmentsByIds(
     ids: string[],
@@ -246,6 +251,17 @@ export default function TranscriptTextEditor({
           </label>
 
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAuxiliaryRows((value) => !value)}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                showAuxiliaryRows
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-700"
+              }`}
+            >
+              {showAuxiliaryRows ? "隐藏停顿" : "显示停顿"}
+            </button>
             <button
               type="button"
               onClick={() => setShowRemovedOnly((value) => !value)}

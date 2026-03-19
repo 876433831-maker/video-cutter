@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ExportSettingsPanel from "@/components/editor/ExportSettingsPanel";
 import ProcessingProgressPanel from "@/components/editor/ProcessingProgressPanel";
-import type {
-  EditSegment,
-  ExportMode,
-  SubtitleFontSize,
-  UploadedVideo
-} from "@/lib/video-edit-types";
+import type { EditSegment, SubtitleFontSize, UploadedVideo } from "@/lib/video-edit-types";
 import HelpPopover from "./HelpPopover";
 
 type ExportPanelProps = {
@@ -77,7 +72,6 @@ export default function ExportPanel({
   const [errorMessage, setErrorMessage] = useState("");
   const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean | null>(null);
   const [capabilities, setCapabilities] = useState<ExportCapabilities | null>(null);
-  const [exportMode, setExportMode] = useState<ExportMode>("fast");
   const [progress, setProgress] = useState<ExportProgressState | null>(null);
   const [exportStartedAt, setExportStartedAt] = useState<number | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -234,7 +228,7 @@ export default function ExportPanel({
       formData.append("file", uploadedVideo.sourceFile);
       formData.append("segments", JSON.stringify(segments));
       formData.append("subtitleFontSize", String(subtitleFontSize));
-      formData.append("exportMode", exportMode);
+      formData.append("exportMode", "final");
 
       const response = await fetch("/api/export", {
         method: "POST",
@@ -295,11 +289,9 @@ export default function ExportPanel({
             ? "请先上传视频"
             : isExporting
               ? "导出中..."
-              : exportMode === "final"
-                ? "导出成片"
-                : "导出预览"}
-        </button>
-      </div>
+              : "导出成片"}
+          </button>
+        </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <ProcessingProgressPanel
@@ -309,9 +301,7 @@ export default function ExportPanel({
         />
 
         <ExportSettingsPanel
-          exportMode={exportMode}
           subtitleFontSize={subtitleFontSize}
-          onExportModeChange={setExportMode}
           capabilities={capabilities}
         />
       </div>
@@ -335,11 +325,9 @@ export default function ExportPanel({
           }`}
         >
           {ffmpegAvailable
-            ? exportMode === "final"
-              ? capabilities?.hardwareAccelerated
-                ? "当前成片导出：硬件编码 + 硬字幕烧录。"
-                : "当前成片导出：CPU 编码 + 硬字幕烧录。"
-              : "当前预览导出：快速检查，不触发整条视频正式烧录。"
+            ? capabilities?.hardwareAccelerated
+              ? "当前成片导出：硬件编码 + 硬字幕烧录。"
+              : "当前成片导出：CPU 编码 + 硬字幕烧录。"
             : "导出环境未就绪：系统里还没有可用的 ffmpeg。"}
         </div>
       </div>
