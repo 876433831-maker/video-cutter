@@ -350,8 +350,8 @@ export default function PreviewWorkspace({
       </div>
 
       <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50">
-        <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200">
-          <div className="absolute left-4 top-4 flex items-center gap-2">
+        <div className="relative flex min-h-[540px] w-full items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-6">
+          <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
             <div className="rounded-full border border-slate-200 bg-white/82 px-3 py-1 text-[11px] text-slate-400">
               上传窗口
             </div>
@@ -362,7 +362,7 @@ export default function PreviewWorkspace({
 
           <div
             ref={controlsRef}
-            className="absolute right-4 top-4"
+            className="absolute right-4 top-4 z-30"
             onMouseEnter={() => setControlsOpen(true)}
             onMouseLeave={() => setControlsOpen(false)}
           >
@@ -408,16 +408,18 @@ export default function PreviewWorkspace({
           </div>
 
           {uploadedVideo ? (
-            <video
-              ref={videoRef}
-              src={uploadedVideo.previewUrl}
-              controls
-              playsInline
-              onPlay={() => jumpOverRemovedPart(videoRef.current?.currentTime ?? 0)}
-              onTimeUpdate={handleTimeUpdate}
-              onSeeked={handleSeeked}
-              className="h-full w-full bg-black object-contain"
-            />
+            <div className="relative z-10 aspect-[3/4] w-full max-w-[340px] overflow-hidden rounded-[20px] border border-slate-200 bg-black shadow-[0_20px_50px_rgba(15,23,42,0.12)] md:max-w-[380px] xl:max-w-[420px]">
+              <video
+                ref={videoRef}
+                src={uploadedVideo.previewUrl}
+                controls
+                playsInline
+                onPlay={() => jumpOverRemovedPart(videoRef.current?.currentTime ?? 0)}
+                onTimeUpdate={handleTimeUpdate}
+                onSeeked={handleSeeked}
+                className="h-full w-full bg-black object-contain"
+              />
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
               <button
@@ -432,7 +434,7 @@ export default function PreviewWorkspace({
           )}
 
           {wrappedSubtitleText ? (
-            <div className="pointer-events-none absolute bottom-6 left-1/2 w-[76%] -translate-x-1/2">
+            <div className="pointer-events-none absolute bottom-8 left-1/2 z-20 w-[76%] max-w-[360px] -translate-x-1/2">
               <div className="rounded-[16px] bg-black/78 px-4 py-3 text-center shadow-sm">
                 <div className="text-[11px] tracking-wide text-white/45">字幕预览</div>
                 <div
