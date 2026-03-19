@@ -21,6 +21,25 @@ type ExportProgressState = {
   elapsedMs: number;
 };
 
+type ExportCapabilities = {
+  encoder?: string;
+  hardwareAccelerated?: boolean;
+  profiles?: {
+    fast?: {
+      label?: string;
+      targetWidth?: number;
+      targetHeight?: number;
+      hardSubtitle?: boolean;
+    };
+    final?: {
+      label?: string;
+      targetWidth?: number;
+      targetHeight?: number;
+      hardSubtitle?: boolean;
+    };
+  };
+};
+
 function formatDuration(seconds: number) {
   const totalSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(totalSeconds / 60);
@@ -55,6 +74,7 @@ export default function ExportPanel({
   const [isExporting, setIsExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean | null>(null);
+  const [capabilities, setCapabilities] = useState<ExportCapabilities | null>(null);
   const [exportMode, setExportMode] = useState<ExportMode>("fast");
   const [progress, setProgress] = useState<ExportProgressState | null>(null);
   const [exportStartedAt, setExportStartedAt] = useState<number | null>(null);
@@ -80,14 +100,25 @@ export default function ExportPanel({
     async function loadExportStatus() {
       try {
         const response = await fetch("/api/export");
-        const payload = (await response.json()) as { available?: boolean };
+        const payload = (await response.json()) as {
+          available?: boolean;
+          encoder?: string;
+          hardwareAccelerated?: boolean;
+          profiles?: ExportCapabilities["profiles"];
+        };
 
         if (mounted) {
           setFfmpegAvailable(Boolean(payload.available));
+          setCapabilities({
+            encoder: payload.encoder,
+            hardwareAccelerated: payload.hardwareAccelerated,
+            profiles: payload.profiles
+          });
         }
       } catch {
         if (mounted) {
           setFfmpegAvailable(false);
+          setCapabilities(null);
         }
       }
     }
@@ -241,8 +272,8 @@ export default function ExportPanel({
             <HelpPopover
               title="导出说明"
               items={[
-                "快速导出更快，输出 MP4 字幕轨。",
-                "成片导出会把字幕直接压进 MP4 画面。"
+                "预览导出只用于快速检查结果，不做硬字幕烧录。",
+                "最终导出会把字幕直接压进 MP4 画面。"
               ]}
             />
           </div>
@@ -263,8 +294,8 @@ export default function ExportPanel({
               : isExporting
                 ? "导出中..."
                 : exportMode === "final"
-                  ? "导出成片"
-                  : "快速导出"}
+                  ? "最终导出"
+                  : "预览导出"}
           </button>
         </div>
 
@@ -279,7 +310,7 @@ export default function ExportPanel({
                   : "text-slate-600 hover:bg-white"
               }`}
             >
-              快速导出
+              预览导出
             </button>
             <button
               type="button"
@@ -290,11 +321,15 @@ export default function ExportPanel({
                   : "text-slate-600 hover:bg-white"
               }`}
             >
-              成片导出
+              最终导出
             </button>
           </div>
 
-          <p className="text-sm text-slate-500">{exportMode === "fast" ? "更快" : "更清晰，较慢"}</p>
+          <p className="text-sm text-slate-500">
+            {exportMode === "fast"
+              ? "720×960，快速检查，不做硬字幕烧录"
+              : "1080×1440，平台发布，保留硬字幕"}
+          </p>
         </div>
 
         {progress ? (
@@ -336,15 +371,23 @@ export default function ExportPanel({
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-400">输出文件名</p>
+            <p className="text-sm text-slate-400">编码器</p>
             <p className="mt-2 text-base font-semibold text-slate-900">
-              {uploadedVideo ? buildOutputFileName(uploadedVideo.fileName) : "--"}
+              {capabilities?.encoder ?? "--"}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-400">字幕字号</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">
               {subtitleFontSize}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-400">输出规格</p>
+            <p className="mt-2 text-base font-semibold text-slate-900">
+              {exportMode === "fast"
+                ? `${capabilities?.profiles?.fast?.targetWidth ?? 720}×${capabilities?.profiles?.fast?.targetHeight ?? 960}`
+                : `${capabilities?.profiles?.final?.targetWidth ?? 1080}×${capabilities?.profiles?.final?.targetHeight ?? 1440}`}
             </p>
           </div>
         </div>
@@ -358,8 +401,10 @@ export default function ExportPanel({
         >
           {ffmpegAvailable
             ? exportMode === "final"
-              ? "导出环境正常：可导出带硬字幕的 MP4。"
-              : "导出环境正常：可快速导出带字幕轨的 MP4。"
+              ? capabilities?.hardwareAccelerated
+                ? "导出环境正常：最终导出会走硬件编码 + 硬字幕烧录。"
+                : "导出环境正常：最终导出会走 CPU 编码 + 硬字幕烧录。"
+              : "预览导出只用于快速检查，不会触发整条视频正式烧录。"
             : "导出环境未就绪：系统里还没有可用的 ffmpeg。"}
         </div>
 

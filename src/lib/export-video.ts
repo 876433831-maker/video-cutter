@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
@@ -12,18 +12,46 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
-const EXPORT_PRESETS = {
+type ExportProfile = {
+  label: string;
+  targetWidth: number;
+  targetHeight: number;
+  videoBitrate: string;
+  maxBitrate: string;
+  audioBitrate: string;
+  x264Preset: string;
+  x264Crf: string;
+  hardSubtitle: boolean;
+};
+
+type VideoEncoder = "h264_videotoolbox" | "h264_nvenc" | "libx264";
+
+const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
   fast: {
-    intermediatePreset: "faster",
-    intermediateCrf: "18"
+    label: "预览导出",
+    targetWidth: 720,
+    targetHeight: 960,
+    videoBitrate: "2200k",
+    maxBitrate: "2800k",
+    audioBitrate: "128k",
+    x264Preset: "veryfast",
+    x264Crf: "24",
+    hardSubtitle: false
   },
   final: {
-    intermediatePreset: "fast",
-    intermediateCrf: "17",
-    outputPreset: "fast",
-    outputCrf: "18"
+    label: "最终导出",
+    targetWidth: 1080,
+    targetHeight: 1440,
+    videoBitrate: "6500k",
+    maxBitrate: "8000k",
+    audioBitrate: "192k",
+    x264Preset: "medium",
+    x264Crf: "18",
+    hardSubtitle: true
   }
 } as const;
+
+let encoderCache: VideoEncoder | null = null;
 
 type ExportProgressPayload = {
   percent: number;
@@ -40,6 +68,108 @@ type VideoMetadata = {
   width: number;
   height: number;
 };
+
+function getPreferredVideoEncoder(): VideoEncoder {
+  if (encoderCache) {
+    return encoderCache;
+  }
+
+  try {
+    const { stdout } = execFileSyncCompat("ffmpeg", ["-hide_banner", "-encoders"]);
+
+    if (stdout.includes("h264_videotoolbox") && canUseEncoder("h264_videotoolbox")) {
+      encoderCache = "h264_videotoolbox";
+      return encoderCache;
+    }
+
+    if (stdout.includes("h264_nvenc") && canUseEncoder("h264_nvenc")) {
+      encoderCache = "h264_nvenc";
+      return encoderCache;
+    }
+  } catch {
+    encoderCache = "libx264";
+    return encoderCache;
+  }
+
+  encoderCache = "libx264";
+  return encoderCache;
+}
+
+function canUseEncoder(encoder: Exclude<VideoEncoder, "libx264">) {
+  const outputPath = join(tmpdir(), `video-cutter-${encoder}-probe.mp4`);
+  const args =
+    encoder === "h264_videotoolbox"
+      ? [
+          "-y",
+          "-f",
+          "lavfi",
+          "-i",
+          "color=c=black:s=720x960:d=0.4",
+          "-frames:v",
+          "1",
+          "-c:v",
+          "h264_videotoolbox",
+          "-allow_sw",
+          "1",
+          "-b:v",
+          "1200k",
+          "-pix_fmt",
+          "yuv420p",
+          outputPath
+        ]
+      : [
+          "-y",
+          "-f",
+          "lavfi",
+          "-i",
+          "color=c=black:s=720x960:d=0.4",
+          "-frames:v",
+          "1",
+          "-c:v",
+          "h264_nvenc",
+          "-preset",
+          "p4",
+          "-b:v",
+          "1200k",
+          "-pix_fmt",
+          "yuv420p",
+          outputPath
+        ];
+
+  const result = spawnSync("ffmpeg", args, {
+    stdio: "ignore"
+  });
+
+  return result.status === 0;
+}
+
+function execFileSyncCompat(command: string, args: string[]) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8"
+  }) as { stdout?: string; stderr?: string; status?: number; error?: Error };
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return {
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? ""
+  };
+}
+
+export function getExportCapabilities() {
+  const encoder = getPreferredVideoEncoder();
+
+  return {
+    encoder,
+    hardwareAccelerated: encoder !== "libx264",
+    profiles: {
+      fast: EXPORT_PROFILES.fast,
+      final: EXPORT_PROFILES.final
+    }
+  };
+}
 
 function sanitizeExtension(fileName: string) {
   const extension = extname(fileName).toLowerCase();
@@ -81,7 +211,11 @@ function calculateOutputDuration(segments: EditSegment[]) {
   );
 }
 
-function buildFilterGraph(segments: EditSegment[]) {
+function buildScaleFilter(profile: ExportProfile) {
+  return `scale=${profile.targetWidth}:${profile.targetHeight}:force_original_aspect_ratio=decrease,pad=${profile.targetWidth}:${profile.targetHeight}:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p`;
+}
+
+function buildFilterGraph(segments: EditSegment[], profile: ExportProfile) {
   const keptSegments = mergeAdjacentKeptSegments(segments);
 
   if (keptSegments.length === 0) {
@@ -108,8 +242,9 @@ function buildFilterGraph(segments: EditSegment[]) {
   });
 
   filters.push(
-    `${concatInputs.join("")}concat=n=${keptSegments.length}:v=1:a=1[outv][outa]`
+    `${concatInputs.join("")}concat=n=${keptSegments.length}:v=1:a=1[concatv][outa]`
   );
+  filters.push(`[concatv]${buildScaleFilter(profile)}[outv]`);
 
   return filters.join(";");
 }
@@ -232,11 +367,11 @@ async function renderSubtitleImage(params: {
 }) {
   const { cue, index, tempDir, videoSize, subtitleFontSize } = params;
   const maxTextWidth = Math.floor(videoSize.width * 0.78);
-  const safeFontSize = Math.max(8, subtitleFontSize * 4);
+  const safeFontSize = Math.max(8, subtitleFontSize * 3.5);
   const lines = wrapSubtitleText(cue.text, safeFontSize, maxTextWidth);
-  const lineHeight = Math.round(safeFontSize * 1.45);
-  const horizontalPadding = Math.round(safeFontSize * 0.75);
-  const verticalPadding = Math.round(safeFontSize * 0.45);
+  const lineHeight = Math.round(safeFontSize * 1.3);
+  const horizontalPadding = Math.round(safeFontSize * 0.55);
+  const verticalPadding = Math.round(safeFontSize * 0.32);
   const textWidths = lines.map((line) =>
     Math.round(Array.from(line).length * safeFontSize * 1.05)
   );
@@ -256,7 +391,7 @@ async function renderSubtitleImage(params: {
 
   const svg = `
     <svg width="${boxWidth}" height="${boxHeight}" viewBox="0 0 ${boxWidth} ${boxHeight}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(safeFontSize * 0.5)}" fill="rgba(0,0,0,0.86)" />
+      <rect x="0" y="0" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(safeFontSize * 0.35)}" fill="rgba(0,0,0,0.82)" />
       <text
         x="50%"
         y="${textY}"
@@ -324,6 +459,61 @@ function buildOverlayFilterGraph(cues: SubtitleCue[]) {
   };
 }
 
+function buildVideoEncoderArgs(params: {
+  encoder: VideoEncoder;
+  profile: ExportProfile;
+  pass: "intermediate" | "final";
+}) {
+  const { encoder, profile, pass } = params;
+
+  if (encoder === "h264_videotoolbox") {
+    return [
+      "-c:v",
+      "h264_videotoolbox",
+      "-profile:v",
+      "high",
+      "-b:v",
+      profile.videoBitrate,
+      "-maxrate",
+      profile.maxBitrate,
+      "-allow_sw",
+      "1",
+      "-pix_fmt",
+      "yuv420p"
+    ];
+  }
+
+  if (encoder === "h264_nvenc") {
+    return [
+      "-c:v",
+      "h264_nvenc",
+      "-preset",
+      pass === "intermediate" ? "p4" : "p5",
+      "-rc",
+      "vbr",
+      "-b:v",
+      profile.videoBitrate,
+      "-maxrate",
+      profile.maxBitrate,
+      "-pix_fmt",
+      "yuv420p"
+    ];
+  }
+
+  return [
+    "-c:v",
+    "libx264",
+    "-preset",
+    profile.x264Preset,
+    "-crf",
+    profile.x264Crf,
+    "-pix_fmt",
+    "yuv420p",
+    "-profile:v",
+    "high"
+  ];
+}
+
 async function runFfmpegWithProgress(params: {
   args: string[];
   durationSeconds: number;
@@ -389,6 +579,8 @@ export async function exportEditedVideo(params: {
   onProgress?: (progress: ExportProgressPayload) => void;
 }) {
   const { file, segments, subtitleFontSize, exportMode, onProgress } = params;
+  const profile = EXPORT_PROFILES[exportMode];
+  const encoder = getPreferredVideoEncoder();
   const tempDir = await mkdtemp(join(tmpdir(), "video-cutter-"));
   const inputPath = join(tempDir, `input${sanitizeExtension(file.name)}`);
   const intermediatePath = join(tempDir, "intermediate.mp4");
@@ -400,7 +592,7 @@ export async function exportEditedVideo(params: {
     await writeFile(inputPath, bytes);
     onProgress?.({ percent: 4, stage: "正在读取素材" });
 
-    const filterGraph = buildFilterGraph(segments);
+    const filterGraph = buildFilterGraph(segments, profile);
 
     await runFfmpegWithProgress({
       args: [
@@ -413,20 +605,15 @@ export async function exportEditedVideo(params: {
         "[outv]",
         "-map",
         "[outa]",
-        "-c:v",
-        "libx264",
-        "-preset",
-        EXPORT_PRESETS[exportMode].intermediatePreset,
-        "-crf",
-        EXPORT_PRESETS[exportMode].intermediateCrf,
-        "-pix_fmt",
-        "yuv420p",
-        "-profile:v",
-        "high",
+        ...buildVideoEncoderArgs({
+          encoder,
+          profile,
+          pass: "intermediate"
+        }),
         "-c:a",
         "aac",
         "-b:a",
-        "192k",
+        profile.audioBitrate,
         "-movflags",
         "+faststart",
         intermediatePath
@@ -443,7 +630,7 @@ export async function exportEditedVideo(params: {
 
     const subtitleCues = buildSubtitleCues(segments);
 
-    if (subtitleCues.length > 0 && exportMode === "final") {
+    if (subtitleCues.length > 0 && profile.hardSubtitle) {
       const videoSize = await probeVideoSize(intermediatePath);
       onProgress?.({ percent: 68, stage: "正在渲染字幕" });
       const imagePaths = await renderSubtitleImages({
@@ -476,16 +663,11 @@ export async function exportEditedVideo(params: {
           overlay.outputLabel,
           "-map",
           "0:a:0",
-          "-c:v",
-          "libx264",
-          "-preset",
-          EXPORT_PRESETS.final.outputPreset,
-          "-crf",
-          EXPORT_PRESETS.final.outputCrf,
-          "-pix_fmt",
-          "yuv420p",
-          "-profile:v",
-          "high",
+          ...buildVideoEncoderArgs({
+            encoder,
+            profile,
+            pass: "final"
+          }),
           "-c:a",
           "copy",
           "-movflags",

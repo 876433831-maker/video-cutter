@@ -2,6 +2,7 @@
   "name": "video-cutter",
   "version": "0.1.0",
   "private": true,
+  "description": "一个用于口播短视频的字幕驱动粗剪工具，支持逐字删片、粗剪预览和 MP4 导出。",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

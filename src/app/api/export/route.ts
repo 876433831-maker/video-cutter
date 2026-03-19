@@ -8,7 +8,7 @@ import {
   setExportJobOutput,
   updateExportJob
 } from "@/lib/export-jobs";
-import { exportEditedVideo } from "@/lib/export-video";
+import { exportEditedVideo, getExportCapabilities } from "@/lib/export-video";
 import type { EditSegment, ExportMode, SubtitleFontSize } from "@/lib/video-edit-types";
 
 function buildOutputName(fileName: string) {
@@ -67,8 +67,12 @@ export async function GET(request: Request) {
   const download = searchParams.get("download");
 
   if (!jobId) {
+    const capabilities = getExportCapabilities();
     return NextResponse.json({
-      available: getFfmpegStatus()
+      available: getFfmpegStatus(),
+      encoder: capabilities.encoder,
+      hardwareAccelerated: capabilities.hardwareAccelerated,
+      profiles: capabilities.profiles
     });
   }
 
