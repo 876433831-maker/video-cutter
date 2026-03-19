@@ -20,21 +20,6 @@ type ExportSettingsPanelProps = {
   } | null;
 };
 
-function SettingRow({
-  label,
-  value
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-b-0 last:pb-0">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-sm font-medium text-slate-900">{value}</span>
-    </div>
-  );
-}
-
 export default function ExportSettingsPanel({
   exportMode,
   subtitleFontSize,
@@ -46,12 +31,18 @@ export default function ExportSettingsPanel({
       ? `${capabilities?.profiles?.fast?.targetWidth ?? 720}×${capabilities?.profiles?.fast?.targetHeight ?? 960}`
       : `${capabilities?.profiles?.final?.targetWidth ?? 1080}×${capabilities?.profiles?.final?.targetHeight ?? 1440}`;
 
+  const encoderLabel = capabilities?.encoder
+    ? capabilities.hardwareAccelerated
+      ? `${capabilities.encoder} · 硬件`
+      : `${capabilities.encoder} · CPU`
+    : "--";
+
   return (
     <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex h-full flex-col gap-3">
         <div>
           <p className="text-sm text-slate-400">导出设置</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-950">分辨率、字幕样式和输出格式</h3>
+          <h3 className="mt-1 text-lg font-semibold text-slate-950">导出模式与输出摘要</h3>
         </div>
 
         <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -80,21 +71,33 @@ export default function ExportSettingsPanel({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <SettingRow label="分辨率" value={resolution} />
-          <SettingRow label="比例" value="3:4 竖屏" />
-          <SettingRow label="格式" value="MP4" />
-          <SettingRow label="字幕样式" value="白字 + 黑底框" />
-          <SettingRow label="字幕大小" value={`${subtitleFontSize}px`} />
-          <SettingRow
-            label="编码器"
-            value={
-              capabilities?.encoder
-                ? capabilities.hardwareAccelerated
-                  ? `${capabilities.encoder} · 硬件`
-                  : `${capabilities.encoder} · CPU`
-                : "--"
-            }
-          />
+          <p className="text-sm text-slate-500">
+            {exportMode === "fast"
+              ? "用于快速检查，不做正式成片发布。"
+              : "用于平台发布，保留硬字幕压制。"}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              resolution,
+              "3:4 竖屏",
+              "MP4",
+              "白字 + 黑底框",
+              `${subtitleFontSize}px`,
+              encoderLabel
+            ].map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+
+          <p className="mt-3 text-xs text-slate-400">
+            字幕大小跟随上方“视频处理”设置联动到预览和导出。
+          </p>
         </div>
       </div>
     </section>
