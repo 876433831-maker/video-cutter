@@ -40,10 +40,10 @@ export default function TranscriptSummaryBar({
       {summaryItems.map((label, index) => (
         <div
           key={label}
-          className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5"
+          className="rounded-2xl bg-white px-3 py-2"
         >
-          <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
-          <p className="mt-1 truncate text-sm font-medium text-slate-900">{values[index]}</p>
+          <p className="text-[11px] text-slate-400">{label}</p>
+          <p className="mt-1 truncate text-sm font-medium text-slate-700">{values[index]}</p>
         </div>
       ))}
     </div>

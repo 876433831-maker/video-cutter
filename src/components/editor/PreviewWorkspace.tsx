@@ -308,10 +308,11 @@ export default function PreviewWorkspace({
 
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-[#111827]">
+          <p className="text-xs font-medium tracking-[0.12em] text-slate-400">视频预览</p>
+          <div className="mt-1 truncate text-lg font-semibold text-[#111827]">
             {uploadedVideo?.fileName ?? "未上传视频"}
           </div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-sm text-slate-400">
             {uploadedVideo
               ? `${formatDuration(uploadedVideo.duration)} · 竖屏 3:4 · ${
                   hasTranscript ? "自动字幕已开启" : "等待字幕生成"
@@ -324,7 +325,7 @@ export default function PreviewWorkspace({
           <button
             type="button"
             onClick={openFileDialog}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
+            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             上传视频
           </button>
@@ -332,7 +333,7 @@ export default function PreviewWorkspace({
             className={`rounded-full px-3 py-1.5 text-xs ${
               isGenerating
                 ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border border-slate-200 bg-slate-50 text-slate-500"
+                : "border border-slate-200 bg-white text-slate-400"
             }`}
           >
             {isGenerating ? "正在处理" : uploadedVideo ? "实时预览已开启" : "等待上传"}
@@ -351,10 +352,10 @@ export default function PreviewWorkspace({
       <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50">
         <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200">
           <div className="absolute left-4 top-4 flex items-center gap-2">
-            <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-xs text-slate-500">
+            <div className="rounded-full border border-slate-200 bg-white/82 px-3 py-1 text-[11px] text-slate-400">
               上传窗口
             </div>
-            <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-xs text-slate-500">
+            <div className="rounded-full border border-slate-200 bg-white/82 px-3 py-1 text-[11px] text-slate-400">
               实时预览已开启
             </div>
           </div>
@@ -396,7 +397,7 @@ export default function PreviewWorkspace({
               <button
                 type="button"
                 onClick={() => setControlsOpen(true)}
-                className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
+                className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm backdrop-blur transition hover:bg-white"
               >
                 调节
               </button>
@@ -423,14 +424,14 @@ export default function PreviewWorkspace({
               >
                 选择视频文件
               </button>
-              <div className="text-sm text-slate-500">支持拖拽上传 · 竖屏 3:4</div>
+              <div className="text-sm text-slate-400">支持拖拽上传 · 竖屏 3:4</div>
             </div>
           )}
 
           {wrappedSubtitleText ? (
             <div className="pointer-events-none absolute bottom-6 left-1/2 w-[76%] -translate-x-1/2">
               <div className="rounded-[16px] bg-black/78 px-4 py-3 text-center shadow-sm">
-                <div className="text-[11px] tracking-wide text-white/55">字幕预览</div>
+                <div className="text-[11px] tracking-wide text-white/45">字幕预览</div>
                 <div
                   className="mt-1 font-medium text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.4)]"
                   style={{ fontSize: `${subtitleFontSize}px` }}
@@ -483,7 +484,7 @@ export default function PreviewWorkspace({
           </div>
 
           {uploadedVideo ? (
-            <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 text-xs text-slate-400 sm:grid-cols-3">
               <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2">
                 大小：{formatBytes(uploadedVideo.fileSize)}
               </div>

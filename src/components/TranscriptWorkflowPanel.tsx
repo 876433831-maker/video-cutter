@@ -88,7 +88,7 @@ export default function TranscriptWorkflowPanel({
 
         {result ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
                 AI 建议 {suggestedRemovalCount} 段
               </span>
