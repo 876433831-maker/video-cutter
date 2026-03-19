@@ -397,9 +397,12 @@ export default function PreviewWorkspace({
               <button
                 type="button"
                 onClick={() => setControlsOpen(true)}
-                className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm backdrop-blur transition hover:bg-white"
+                className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-left text-xs shadow-sm backdrop-blur transition hover:bg-white"
               >
-                调节
+                <div className="font-medium text-slate-700">调节</div>
+                <div className="mt-0.5 text-[11px] leading-5 text-slate-400">
+                  {playbackRate.toFixed(2).replace(/\.00$/, "")}x · +{volumeGainDb}dB · {subtitleFontSize}px
+                </div>
               </button>
             )}
           </div>
