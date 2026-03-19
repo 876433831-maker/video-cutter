@@ -35,6 +35,7 @@ export default function PreviewStatusBar({
   return (
     <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
       <StatusChip label="字幕大小" value={`${subtitleFontSize}px`} />
+      <StatusChip label="字幕样式" value="白字 + 黑底框" />
       <StatusChip label="播放倍速" value={`${playbackRate}x`} />
       <StatusChip label="音量增益" value={`+${volumeGainDb}dB`} />
       <StatusChip label="静音片段" value="自动压低背景音" />

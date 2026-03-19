@@ -8,6 +8,7 @@ import type {
 } from "@/lib/video-edit-types";
 import HelpPopover from "@/components/HelpPopover";
 import PreviewStatusBar from "./PreviewStatusBar";
+import TimelinePreview from "./TimelinePreview";
 
 type PreviewMonitorProps = {
   uploadedVideo: UploadedVideo | null;
@@ -250,6 +251,8 @@ export default function PreviewMonitor({
           estimatedDurationLabel={formatDuration(estimatedDuration)}
           removedCount={removedSegments.length}
         />
+
+        <TimelinePreview segments={segments} duration={uploadedVideo?.duration ?? null} />
       </div>
     </section>
   );
