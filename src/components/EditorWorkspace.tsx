@@ -193,9 +193,9 @@ export default function EditorWorkspace() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.84fr)_minmax(0,1.16fr)] xl:items-start">
-        <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] xl:items-start">
+        <div className="space-y-3 xl:sticky xl:top-[72px]">
           <UploadPanel onVideoReady={setUploadedVideo} />
           <PreviewMonitor
             uploadedVideo={uploadedVideo}
@@ -221,7 +221,7 @@ export default function EditorWorkspace() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <VideoProcessingPanel
           disabled={!result}
           subtitleFontSize={subtitleFontSize}
@@ -239,13 +239,15 @@ export default function EditorWorkspace() {
           disabled={!result}
           onToggleSuggested={handleToggleSuggested}
         />
-      </div>
 
-      <ExportPanel
-        uploadedVideo={uploadedVideo}
-        segments={editSegments}
-        subtitleFontSize={subtitleFontSize}
-      />
+        <div className="lg:col-span-2 xl:col-span-2">
+          <ExportPanel
+            uploadedVideo={uploadedVideo}
+            segments={editSegments}
+            subtitleFontSize={subtitleFontSize}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -59,8 +59,8 @@ export default function TranscriptWorkflowPanel({
     transcribeStatus?.provider === "volcengine" ? "豆包语音识别" : "本地回退";
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <TranscriptHeader
           hasVideo={Boolean(uploadedVideo)}
           hasResult={Boolean(result)}
@@ -80,7 +80,7 @@ export default function TranscriptWorkflowPanel({
 
         {transcribeStatus ? (
           <div
-            className={`rounded-2xl border px-4 py-3 text-sm ${
+            className={`rounded-[18px] border px-4 py-2.5 text-sm ${
               transcribeStatus.ffmpegAvailable
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-amber-200 bg-amber-50 text-amber-700"
@@ -95,17 +95,17 @@ export default function TranscriptWorkflowPanel({
         ) : null}
 
         {errorMessage ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
             {errorMessage}
           </div>
         ) : null}
 
         {!uploadedVideo ? (
-          <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-12 text-center text-sm text-slate-500">
+          <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
             上传视频后，右侧出现字幕与粗剪编辑区。
           </div>
         ) : !result ? (
-          <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-12 text-sm text-slate-500">
+          <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-sm text-slate-500">
             先生成字幕，再开始逐字删片和时间轴粗剪。
           </div>
         ) : (

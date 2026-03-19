@@ -14,7 +14,7 @@ export default function AISuggestionPanel({
   onToggleSuggested
 }: AISuggestionPanelProps) {
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex h-full flex-col gap-4">
         <div>
           <p className="text-sm text-slate-400">AI 建议</p>

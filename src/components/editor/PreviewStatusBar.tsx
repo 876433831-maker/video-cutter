@@ -33,7 +33,7 @@ export default function PreviewStatusBar({
   removedCount
 }: PreviewStatusBarProps) {
   return (
-    <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
       <StatusChip label="字幕大小" value={`${subtitleFontSize}px`} />
       <StatusChip label="字幕样式" value="白字 + 黑底框" />
       <StatusChip label="播放倍速" value={`${playbackRate}x`} />

@@ -224,8 +224,8 @@ export default function TranscriptTextEditor({
   }, []);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-      <div className="flex flex-col gap-4">
+    <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">文字剪辑面板</p>
@@ -291,7 +291,7 @@ export default function TranscriptTextEditor({
           </div>
         )}
 
-        <div className="max-h-[720px] overflow-y-auto pr-1">
+        <div className="max-h-[680px] overflow-y-auto pr-1">
           {filteredGroups.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-sm text-slate-500">
               没有匹配的字幕片段。

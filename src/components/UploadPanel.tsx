@@ -77,8 +77,8 @@ export default function UploadPanel({ onVideoReady }: UploadPanelProps) {
   }
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-6">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm text-slate-400">视频上传</p>
@@ -90,7 +90,7 @@ export default function UploadPanel({ onVideoReady }: UploadPanelProps) {
           />
         </div>
 
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-slate-400 hover:bg-slate-100">
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center transition hover:border-slate-400 hover:bg-slate-100">
           <span className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white">
             选择视频文件
           </span>
@@ -99,8 +99,8 @@ export default function UploadPanel({ onVideoReady }: UploadPanelProps) {
         </label>
 
         {previewUrl ? (
-          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-            <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+          <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
               <div className="min-w-0">
                 <span className="text-slate-400">文件：</span>
                 <span className="break-all font-medium text-slate-900">{videoFile?.name}</span>

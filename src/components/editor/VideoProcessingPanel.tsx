@@ -63,8 +63,8 @@ export default function VideoProcessingPanel({
   onVolumeGainDbChange
 }: VideoProcessingPanelProps) {
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-5">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-slate-400">视频处理</p>
           <h3 className="mt-1 text-lg font-semibold text-slate-950">预览与成片共用的处理参数</h3>

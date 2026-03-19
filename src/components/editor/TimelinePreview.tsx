@@ -23,15 +23,15 @@ export default function TimelinePreview({
       : Math.max(...segments.map((segment) => segment.end), 0);
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-4">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex h-full flex-col gap-3">
         <div>
           <p className="text-sm text-slate-400">时间轴预览</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-950">保留与删除片段分布</h3>
+          <h3 className="mt-1 text-base font-semibold text-slate-950">保留与删除分布</h3>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-          <div className="flex h-6 w-full">
+          <div className="flex h-5 w-full">
             {segments.length === 0 || safeDuration <= 0 ? (
               <div className="flex flex-1 items-center justify-center text-xs text-slate-400">
                 生成字幕后显示时间轴
@@ -62,7 +62,7 @@ export default function TimelinePreview({
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center justify-between text-[11px] text-slate-500">
           <span>00:00</span>
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-1">

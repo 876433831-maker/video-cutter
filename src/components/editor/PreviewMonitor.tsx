@@ -172,8 +172,8 @@ export default function PreviewMonitor({
   }
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-4">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm text-slate-400">视频预览</p>
@@ -199,9 +199,9 @@ export default function PreviewMonitor({
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+        <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
           {uploadedVideo ? (
-            <div className="mx-auto w-full max-w-[340px]">
+            <div className="mx-auto w-full max-w-[300px]">
               <div className="relative overflow-hidden rounded-[20px] border border-slate-200 bg-slate-950 shadow-sm">
                 <video
                   ref={videoRef}
@@ -243,16 +243,18 @@ export default function PreviewMonitor({
           )}
         </div>
 
-        <PreviewStatusBar
-          subtitleFontSize={subtitleFontSize}
-          playbackRate={playbackRate}
-          volumeGainDb={volumeGainDb}
-          currentTimeLabel={formatDuration(currentTime)}
-          estimatedDurationLabel={formatDuration(estimatedDuration)}
-          removedCount={removedSegments.length}
-        />
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <PreviewStatusBar
+            subtitleFontSize={subtitleFontSize}
+            playbackRate={playbackRate}
+            volumeGainDb={volumeGainDb}
+            currentTimeLabel={formatDuration(currentTime)}
+            estimatedDurationLabel={formatDuration(estimatedDuration)}
+            removedCount={removedSegments.length}
+          />
 
-        <TimelinePreview segments={segments} duration={uploadedVideo?.duration ?? null} />
+          <TimelinePreview segments={segments} duration={uploadedVideo?.duration ?? null} />
+        </div>
       </div>
     </section>
   );

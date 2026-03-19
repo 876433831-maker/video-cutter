@@ -36,11 +36,11 @@ export default function TranscriptSummaryBar({
   ];
 
   return (
-    <div className="grid gap-2 rounded-[24px] border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+    <div className="grid gap-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {summaryItems.map((label, index) => (
         <div
           key={label}
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3"
+          className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5"
         >
           <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
           <p className="mt-1 truncate text-sm font-medium text-slate-900">{values[index]}</p>
