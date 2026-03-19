@@ -321,7 +321,7 @@ export default function EditorWorkspace() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
         <VideoProcessingPanel
           disabled={!result}
           subtitleFontSize={subtitleFontSize}

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import ExportSettingsPanel from "@/components/editor/ExportSettingsPanel";
 import ProcessingProgressPanel from "@/components/editor/ProcessingProgressPanel";
 import type { EditSegment, SubtitleFontSize, UploadedVideo } from "@/lib/video-edit-types";
-import HelpPopover from "./HelpPopover";
 
 type ExportPanelProps = {
   uploadedVideo: UploadedVideo | null;
@@ -257,21 +256,11 @@ export default function ExportPanel({
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div>
-            <p className="text-sm text-slate-400">导出与处理</p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-950">处理进度、导出参数和成片输出</h2>
-          </div>
-          <HelpPopover
-            title="导出说明"
-            items={[
-              "预览导出只用于快速检查结果，不做硬字幕烧录。",
-              "最终导出会把字幕直接压进 MP4 画面。",
-              "视频处理参数来自下方的视频处理卡片。"
-            ]}
-          />
+        <div>
+          <p className="text-sm text-slate-400">最终导出</p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-950">导出成片</h2>
         </div>
 
         <button
@@ -290,47 +279,41 @@ export default function ExportPanel({
             : isExporting
               ? "导出中..."
               : "导出成片"}
-          </button>
-        </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ProcessingProgressPanel
-          progress={progress}
-          ready={Boolean(uploadedVideo && keptSegments.length > 0)}
-          errorMessage={errorMessage}
-        />
-
-        <ExportSettingsPanel
-          subtitleFontSize={subtitleFontSize}
-          capabilities={capabilities}
-        />
+        </button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <p className="text-sm text-slate-400">保留片段</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{keptSegments.length} 段</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <p className="text-sm text-slate-400">预计成片时长</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">
-            {formatDuration(totalOutputSeconds)}
-          </p>
-        </div>
-        <div
-          className={`rounded-2xl border px-4 py-4 text-sm shadow-sm ${
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700">
+          保留 {keptSegments.length} 段
+        </span>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700">
+          预计 {formatDuration(totalOutputSeconds)}
+        </span>
+        <span
+          className={`rounded-full px-3 py-1.5 text-sm ${
             ffmpegAvailable
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-amber-200 bg-amber-50 text-amber-700"
+              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border border-amber-200 bg-amber-50 text-amber-700"
           }`}
         >
           {ffmpegAvailable
             ? capabilities?.hardwareAccelerated
-              ? "当前成片导出：硬件编码 + 硬字幕烧录。"
-              : "当前成片导出：CPU 编码 + 硬字幕烧录。"
-            : "导出环境未就绪：系统里还没有可用的 ffmpeg。"}
-        </div>
+              ? "硬件编码 + 硬字幕"
+              : "CPU 编码 + 硬字幕"
+            : "ffmpeg 未就绪"}
+        </span>
       </div>
+
+      <ExportSettingsPanel
+        subtitleFontSize={subtitleFontSize}
+        capabilities={capabilities}
+      />
+
+      <ProcessingProgressPanel
+        progress={progress}
+        ready={Boolean(uploadedVideo && keptSegments.length > 0)}
+        errorMessage={errorMessage}
+      />
     </section>
   );
 }
