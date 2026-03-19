@@ -72,9 +72,11 @@ export default function PreviewWorkspace({
 }: PreviewWorkspaceProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(uploadedVideo?.sourceFile ?? null);
   const [duration, setDuration] = useState<number | null>(uploadedVideo?.duration ?? null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   const previewUrl = useMemo(() => {
     if (!videoFile) {
@@ -173,6 +175,38 @@ export default function PreviewWorkspace({
 
     video.playbackRate = playbackRate;
   }, [playbackRate]);
+
+  useEffect(() => {
+    if (!controlsOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const container = controlsRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      if (!container.contains(event.target as Node)) {
+        setControlsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setControlsOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [controlsOpen]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -325,31 +359,48 @@ export default function PreviewWorkspace({
             </div>
           </div>
 
-          <div className="absolute right-4 top-4 flex w-[290px] max-w-[calc(100%-2rem)] flex-col gap-2">
-            {renderControlGroup(
-              "播放倍速",
-              playbackRateOptions,
-              playbackRate,
-              (value) => `${value}x`,
-              onPlaybackRateChange
+          <div
+            ref={controlsRef}
+            className="absolute right-4 top-4"
+            onMouseEnter={() => setControlsOpen(true)}
+            onMouseLeave={() => setControlsOpen(false)}
+          >
+            {controlsOpen ? (
+              <div className="flex w-[290px] max-w-[calc(100vw-4rem)] flex-col gap-2">
+                {renderControlGroup(
+                  "播放倍速",
+                  playbackRateOptions,
+                  playbackRate,
+                  (value) => `${value}x`,
+                  onPlaybackRateChange
+                )}
+                {renderControlGroup(
+                  "音量增益",
+                  volumeGainOptions,
+                  volumeGainDb,
+                  (value) => `+${value}dB`,
+                  onVolumeGainDbChange
+                )}
+                {renderControlGroup(
+                  "字幕大小",
+                  subtitleSizeOptions,
+                  subtitleFontSize,
+                  (value) => `${value}px`,
+                  onSubtitleFontSizeChange
+                )}
+                <div className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-[11px] text-slate-600 shadow-sm backdrop-blur">
+                  静音片段自动压低背景音：已启用
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setControlsOpen(true)}
+                className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
+              >
+                调节
+              </button>
             )}
-            {renderControlGroup(
-              "音量增益",
-              volumeGainOptions,
-              volumeGainDb,
-              (value) => `+${value}dB`,
-              onVolumeGainDbChange
-            )}
-            {renderControlGroup(
-              "字幕大小",
-              subtitleSizeOptions,
-              subtitleFontSize,
-              (value) => `${value}px`,
-              onSubtitleFontSizeChange
-            )}
-            <div className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-[11px] text-slate-600 shadow-sm backdrop-blur">
-              静音片段自动压低背景音：已启用
-            </div>
           </div>
 
           {uploadedVideo ? (
