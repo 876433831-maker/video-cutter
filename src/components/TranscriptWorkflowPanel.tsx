@@ -67,7 +67,7 @@ export default function TranscriptWorkflowPanel({
     transcribeStatus?.provider === "volcengine" ? "豆包语音识别" : "本地回退";
 
   return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="h-fit rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-[72px]">
       <div className="flex flex-col gap-3">
         <TranscriptHeader
           hasVideo={Boolean(uploadedVideo)}
