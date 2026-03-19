@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { promisify } from "node:util";
 import sharp from "sharp";
+import { composeSegmentText } from "@/lib/transcript-editor";
 import type {
   EditSegment,
   ExportMode,
@@ -21,7 +22,7 @@ type ExportProfile = {
   audioBitrate: string;
   x264Preset: string;
   x264Crf: string;
-  hardSubtitle: boolean;
+  subtitleMode: "none" | "hard" | "soft";
 };
 
 type VideoEncoder = "h264_videotoolbox" | "h264_nvenc" | "libx264";
@@ -36,10 +37,10 @@ const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
     audioBitrate: "128k",
     x264Preset: "veryfast",
     x264Crf: "24",
-    hardSubtitle: false
+    subtitleMode: "none"
   },
   final: {
-    label: "最终导出",
+    label: "默认成片",
     targetWidth: 1080,
     targetHeight: 1440,
     videoBitrate: "6500k",
@@ -47,7 +48,7 @@ const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
     audioBitrate: "192k",
     x264Preset: "medium",
     x264Crf: "18",
-    hardSubtitle: true
+    subtitleMode: "none"
   }
 } as const;
 
@@ -57,6 +58,13 @@ type ExportProgressPayload = {
   percent: number;
   stage: string;
 };
+
+export class ExportCancelledError extends Error {
+  constructor() {
+    super("导出已取消。");
+    this.name = "ExportCancelledError";
+  }
+}
 
 type SubtitleCue = {
   start: number;
@@ -290,19 +298,38 @@ function wrapSubtitleText(text: string, fontSize: number, maxWidth: number) {
 }
 
 function buildSubtitleCues(segments: EditSegment[]) {
-  const keptSegments = mergeAdjacentKeptSegments(segments).filter(
-    (segment) =>
-      segment.action === "keep" &&
-      segment.text.trim() &&
-      segment.reason !== "pause"
-  );
+  const groupedSegments = new Map<string, EditSegment[]>();
+  segments
+    .filter(
+      (segment) =>
+        segment.action === "keep" &&
+        segment.text.trim() &&
+        !["pause", "breath", "noise"].includes(segment.reason)
+    )
+    .forEach((segment) => {
+      const key = segment.groupId || segment.id;
+      const current = groupedSegments.get(key) ?? [];
+      current.push(segment);
+      groupedSegments.set(key, current);
+    });
+
+  const keptGroups = Array.from(groupedSegments.values())
+    .map((groupSegments) =>
+      [...groupSegments].sort((left, right) => (left.unitIndex ?? 0) - (right.unitIndex ?? 0))
+    )
+    .sort((left, right) => left[0].start - right[0].start);
 
   let currentTime = 0;
   const cues: SubtitleCue[] = [];
 
-  keptSegments.forEach((segment) => {
-    const duration = (segment.end - segment.start) / (segment.speed || 1);
-    const text = escapeSrtText(segment.text);
+  keptGroups.forEach((groupSegments) => {
+    const duration = groupSegments.reduce(
+      (total, segment) => total + (segment.end - segment.start) / (segment.speed || 1),
+      0
+    );
+    const text = escapeSrtText(
+      composeSegmentText(groupSegments, { respectBreaks: true })
+    );
 
     if (!text || duration <= 0) {
       currentTime += Math.max(duration, 0);
@@ -369,9 +396,9 @@ async function renderSubtitleImage(params: {
   const maxTextWidth = Math.floor(videoSize.width * 0.78);
   const safeFontSize = Math.max(8, subtitleFontSize * 3.5);
   const lines = wrapSubtitleText(cue.text, safeFontSize, maxTextWidth);
-  const lineHeight = Math.round(safeFontSize * 1.3);
-  const horizontalPadding = Math.round(safeFontSize * 0.55);
-  const verticalPadding = Math.round(safeFontSize * 0.32);
+  const lineHeight = Math.round(safeFontSize * 1.2);
+  const horizontalPadding = Math.round(safeFontSize * 0.36);
+  const verticalPadding = Math.round(safeFontSize * 0.2);
   const textWidths = lines.map((line) =>
     Math.round(Array.from(line).length * safeFontSize * 1.05)
   );
@@ -391,7 +418,7 @@ async function renderSubtitleImage(params: {
 
   const svg = `
     <svg width="${boxWidth}" height="${boxHeight}" viewBox="0 0 ${boxWidth} ${boxHeight}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(safeFontSize * 0.35)}" fill="rgba(0,0,0,0.82)" />
+      <rect x="0" y="0" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(safeFontSize * 0.22)}" fill="#000000" />
       <text
         x="50%"
         y="${textY}"
@@ -414,11 +441,16 @@ async function renderSubtitleImages(params: {
   videoSize: VideoMetadata;
   subtitleFontSize: SubtitleFontSize;
   onProgress?: (progress: number) => void;
+  signal?: AbortSignal;
 }) {
-  const { cues, tempDir, videoSize, subtitleFontSize, onProgress } = params;
+  const { cues, tempDir, videoSize, subtitleFontSize, onProgress, signal } = params;
   const imagePaths: string[] = [];
 
   for (let index = 0; index < cues.length; index += 1) {
+    if (signal?.aborted) {
+      throw new ExportCancelledError();
+    }
+
     const imagePath = await renderSubtitleImage({
       cue: cues[index],
       index,
@@ -514,19 +546,40 @@ function buildVideoEncoderArgs(params: {
   ];
 }
 
-async function runFfmpegWithProgress(params: {
+async function runFfmpegCommand(params: {
   args: string[];
-  durationSeconds: number;
+  durationSeconds?: number;
   onProgress?: (progress: number) => void;
+  signal?: AbortSignal;
 }) {
-  const { args, durationSeconds, onProgress } = params;
-  const safeDuration = Math.max(durationSeconds, 0.1);
+  const { args, durationSeconds, onProgress, signal } = params;
+  const safeDuration = Math.max(durationSeconds ?? 0.1, 0.1);
 
   await new Promise<void>((resolve, reject) => {
     const ffmpeg = spawn("ffmpeg", ["-progress", "pipe:1", "-nostats", ...args]);
     let stdoutBuffer = "";
     let stderr = "";
     let lastProgress = 0;
+    let aborted = Boolean(signal?.aborted);
+
+    const handleAbort = () => {
+      aborted = true;
+
+      if (!ffmpeg.killed) {
+        ffmpeg.kill("SIGTERM");
+        setTimeout(() => {
+          if (!ffmpeg.killed) {
+            ffmpeg.kill("SIGKILL");
+          }
+        }, 800).unref();
+      }
+    };
+
+    if (signal?.aborted) {
+      handleAbort();
+    }
+
+    signal?.addEventListener("abort", handleAbort, { once: true });
 
     ffmpeg.stdout.on("data", (chunk: Buffer | string) => {
       stdoutBuffer += chunk.toString();
@@ -542,7 +595,7 @@ async function runFfmpegWithProgress(params: {
           if (Number.isFinite(outTimeMs)) {
             const nextProgress = Math.max(
               lastProgress,
-              Math.min(outTimeMs / (safeDuration * 1_000_000), 1)
+              Math.min(outTimeMs / (safeDuration * 1_000_000), 0.97)
             );
             lastProgress = nextProgress;
             onProgress?.(nextProgress);
@@ -559,8 +612,18 @@ async function runFfmpegWithProgress(params: {
       stderr += chunk.toString();
     });
 
-    ffmpeg.on("error", reject);
+    ffmpeg.on("error", (error) => {
+      signal?.removeEventListener("abort", handleAbort);
+      reject(error);
+    });
     ffmpeg.on("close", (code) => {
+      signal?.removeEventListener("abort", handleAbort);
+
+      if (aborted || signal?.aborted) {
+        reject(new ExportCancelledError());
+        return;
+      }
+
       if (code === 0) {
         resolve();
         return;
@@ -577,8 +640,9 @@ export async function exportEditedVideo(params: {
   subtitleFontSize: SubtitleFontSize;
   exportMode: ExportMode;
   onProgress?: (progress: ExportProgressPayload) => void;
+  signal?: AbortSignal;
 }) {
-  const { file, segments, subtitleFontSize, exportMode, onProgress } = params;
+  const { file, segments, subtitleFontSize, exportMode, onProgress, signal } = params;
   const profile = EXPORT_PROFILES[exportMode];
   const encoder = getPreferredVideoEncoder();
   const tempDir = await mkdtemp(join(tmpdir(), "video-cutter-"));
@@ -594,7 +658,11 @@ export async function exportEditedVideo(params: {
 
     const filterGraph = buildFilterGraph(segments, profile);
 
-    await runFfmpegWithProgress({
+    if (signal?.aborted) {
+      throw new ExportCancelledError();
+    }
+
+    await runFfmpegCommand({
       args: [
         "-y",
         "-i",
@@ -619,8 +687,9 @@ export async function exportEditedVideo(params: {
         intermediatePath
       ],
       durationSeconds: totalOutputSeconds,
+      signal,
       onProgress: (progress) => {
-        const mappedProgress = exportMode === "final" ? 8 + progress * 58 : 8 + progress * 74;
+        const mappedProgress = exportMode === "final" ? 8 + progress * 44 : 8 + progress * 74;
         onProgress?.({
           percent: mappedProgress,
           stage: "正在拼接片段"
@@ -630,18 +699,19 @@ export async function exportEditedVideo(params: {
 
     const subtitleCues = buildSubtitleCues(segments);
 
-    if (subtitleCues.length > 0 && profile.hardSubtitle) {
+    if (subtitleCues.length > 0 && profile.subtitleMode === "hard") {
       const videoSize = await probeVideoSize(intermediatePath);
-      onProgress?.({ percent: 68, stage: "正在渲染字幕" });
+      onProgress?.({ percent: 54, stage: "正在渲染字幕图片" });
       const imagePaths = await renderSubtitleImages({
         cues: subtitleCues,
         tempDir,
         videoSize,
         subtitleFontSize,
+        signal,
         onProgress: (progress) => {
           onProgress?.({
-            percent: 68 + progress * 12,
-            stage: "正在渲染字幕"
+            percent: 54 + progress * 14,
+            stage: "正在渲染字幕图片"
           });
         }
       });
@@ -651,7 +721,7 @@ export async function exportEditedVideo(params: {
         throw new Error("字幕图片生成失败，暂时不能导出。");
       }
 
-      await runFfmpegWithProgress({
+      await runFfmpegCommand({
         args: [
           "-y",
           "-i",
@@ -675,14 +745,16 @@ export async function exportEditedVideo(params: {
           outputPath
         ],
         durationSeconds: totalOutputSeconds,
+        signal,
         onProgress: (progress) => {
           onProgress?.({
-            percent: 80 + progress * 19,
+            percent: 68 + progress * 24,
             stage: "正在压制硬字幕"
           });
         }
       });
-    } else if (subtitleCues.length > 0) {
+      onProgress?.({ percent: 94, stage: "正在收尾封装" });
+    } else if (subtitleCues.length > 0 && profile.subtitleMode === "soft") {
       const srtPath = join(tempDir, "subtitles.srt");
       const srtContent = subtitleCues
         .map(
@@ -692,35 +764,41 @@ export async function exportEditedVideo(params: {
         .join("\n\n");
 
       await writeFile(srtPath, srtContent, "utf8");
-      onProgress?.({ percent: 86, stage: "正在封装字幕轨" });
+      onProgress?.({ percent: 82, stage: "正在封装字幕轨" });
 
-      await execFileAsync("ffmpeg", [
-        "-y",
-        "-i",
-        intermediatePath,
-        "-i",
-        srtPath,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a:0",
-        "-map",
-        "1:0",
-        "-c:v",
-        "copy",
-        "-c:a",
-        "copy",
-        "-c:s",
-        "mov_text",
-        "-metadata:s:s:0",
-        "language=zho",
-        "-movflags",
-        "+faststart",
-        outputPath
-      ]);
+      await runFfmpegCommand({
+        args: [
+          "-y",
+          "-i",
+          intermediatePath,
+          "-i",
+          srtPath,
+          "-map",
+          "0:v:0",
+          "-map",
+          "0:a:0",
+          "-map",
+          "1:0",
+          "-c:v",
+          "copy",
+          "-c:a",
+          "copy",
+          "-c:s",
+          "mov_text",
+          "-metadata:s:s:0",
+          "language=zho",
+          "-movflags",
+          "+faststart",
+          outputPath
+        ],
+        signal
+      });
     } else {
-      onProgress?.({ percent: 92, stage: "正在封装视频" });
-      await execFileAsync("ffmpeg", ["-y", "-i", intermediatePath, "-c", "copy", outputPath]);
+      onProgress?.({ percent: 88, stage: "正在封装视频" });
+      await runFfmpegCommand({
+        args: ["-y", "-i", intermediatePath, "-c", "copy", outputPath],
+        signal
+      });
     }
 
     onProgress?.({ percent: 100, stage: "导出完成" });

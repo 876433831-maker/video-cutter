@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { execFileSync } from "node:child_process";
 import {
+  cancelExportJob,
   consumeExportJobOutput,
   createExportJob,
   failExportJob,
   getExportJob,
+  setExportJobAbort,
   setExportJobOutput,
   updateExportJob
 } from "@/lib/export-jobs";
-import { exportEditedVideo, getExportCapabilities } from "@/lib/export-video";
+import {
+  ExportCancelledError,
+  exportEditedVideo,
+  getExportCapabilities
+} from "@/lib/export-video";
 import { buildOutputFileNameFromSegments } from "@/lib/video-title";
 import type { EditSegment, ExportMode, SubtitleFontSize } from "@/lib/video-edit-types";
 
@@ -102,17 +108,42 @@ export async function GET(request: Request) {
   });
 }
 
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const jobId = searchParams.get("jobId");
+
+  if (!jobId) {
+    return NextResponse.json({ error: "缺少导出任务 ID。" }, { status: 400 });
+  }
+
+  const job = cancelExportJob(jobId);
+
+  if (!job) {
+    return NextResponse.json({ error: "导出任务不存在或已过期。" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    id: job.id,
+    status: job.status,
+    progress: job.progress,
+    stage: job.stage
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const { file, segments, subtitleFontSize, exportMode } = parseExportRequest(formData);
     const job = createExportJob(buildOutputFileNameFromSegments(segments, file.name));
+    const abortController = new AbortController();
+    setExportJobAbort(job.id, () => abortController.abort());
 
     void exportEditedVideo({
       file,
       segments,
       subtitleFontSize,
       exportMode,
+      signal: abortController.signal,
       onProgress: ({ percent, stage }) => {
         updateExportJob(job.id, {
           status: "running",
@@ -125,6 +156,11 @@ export async function POST(request: Request) {
         setExportJobOutput(job.id, output);
       })
       .catch((error) => {
+        if (error instanceof ExportCancelledError) {
+          cancelExportJob(job.id);
+          return;
+        }
+
         const message =
           error instanceof Error ? error.message : "导出失败，请稍后重试。";
         failExportJob(job.id, message);

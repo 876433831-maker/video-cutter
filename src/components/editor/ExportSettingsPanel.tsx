@@ -10,10 +10,12 @@ type ExportSettingsPanelProps = {
       fast?: {
         targetWidth?: number;
         targetHeight?: number;
+        subtitleMode?: "none" | "hard" | "soft";
       };
       final?: {
         targetWidth?: number;
         targetHeight?: number;
+        subtitleMode?: "none" | "hard" | "soft";
       };
     };
   } | null;
@@ -27,6 +29,12 @@ export default function ExportSettingsPanel({
   const profile =
     exportMode === "fast" ? capabilities?.profiles?.fast : capabilities?.profiles?.final;
   const resolution = `${profile?.targetWidth ?? (exportMode === "fast" ? 720 : 1080)}×${profile?.targetHeight ?? (exportMode === "fast" ? 960 : 1440)}`;
+  const subtitleLabel =
+    profile?.subtitleMode === "hard"
+      ? `硬字幕 · ${subtitleFontSize}px`
+      : profile?.subtitleMode === "soft"
+        ? `字幕轨 · ${subtitleFontSize}px`
+        : "不带字幕";
 
   const encoderLabel = capabilities?.encoder
     ? capabilities.hardwareAccelerated
@@ -40,8 +48,8 @@ export default function ExportSettingsPanel({
         resolution,
         "3:4 竖屏",
         "MP4",
-        exportMode === "fast" ? "快速导出" : "白字 + 黑底框",
-        `${subtitleFontSize}px`,
+        exportMode === "fast" ? "快速导出" : "默认成片",
+        subtitleLabel,
         encoderLabel
       ].map((item) => (
         <span

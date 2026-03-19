@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-export type ExportJobStatus = "queued" | "running" | "completed" | "failed";
+export type ExportJobStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export type ExportJob = {
   id: string;
@@ -10,6 +15,7 @@ export type ExportJob = {
   stage: string;
   error?: string;
   output?: Buffer;
+  abort?: () => void;
   createdAt: number;
   updatedAt: number;
 };
@@ -37,6 +43,10 @@ function cleanup() {
       store.delete(jobId);
     }
   }
+}
+
+function isTerminalStatus(status: ExportJobStatus) {
+  return ["completed", "failed", "cancelled"].includes(status);
 }
 
 export function createExportJob(fileName: string) {
@@ -73,6 +83,10 @@ export function updateExportJob(
     return null;
   }
 
+  if (isTerminalStatus(job.status) && patch.status !== job.status) {
+    return job;
+  }
+
   const nextJob: ExportJob = {
     ...job,
     ...patch,
@@ -84,20 +98,65 @@ export function updateExportJob(
 }
 
 export function setExportJobOutput(jobId: string, output: Buffer) {
+  const job = getExportJob(jobId);
+
+  if (!job || job.status === "cancelled") {
+    return job;
+  }
+
   return updateExportJob(jobId, {
     output,
     status: "completed",
     progress: 100,
-    stage: "导出完成"
+    stage: "导出完成",
+    abort: undefined
   });
 }
 
 export function failExportJob(jobId: string, error: string) {
+  const job = getExportJob(jobId);
+
+  if (!job || job.status === "cancelled") {
+    return job;
+  }
+
   return updateExportJob(jobId, {
     status: "failed",
     stage: "导出失败",
-    error
+    error,
+    abort: undefined
   });
+}
+
+export function setExportJobAbort(jobId: string, abort: (() => void) | undefined) {
+  return updateExportJob(jobId, { abort });
+}
+
+export function cancelExportJob(jobId: string) {
+  const store = getStore();
+  const job = store.get(jobId);
+
+  if (!job) {
+    return null;
+  }
+
+  if (isTerminalStatus(job.status)) {
+    return job;
+  }
+
+  job.abort?.();
+
+  const nextJob: ExportJob = {
+    ...job,
+    status: "cancelled",
+    stage: "导出已取消",
+    abort: undefined,
+    output: undefined,
+    updatedAt: Date.now()
+  };
+
+  store.set(jobId, nextJob);
+  return nextJob;
 }
 
 export function consumeExportJobOutput(jobId: string) {

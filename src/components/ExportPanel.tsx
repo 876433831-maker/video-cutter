@@ -34,13 +34,13 @@ type ExportCapabilities = {
       label?: string;
       targetWidth?: number;
       targetHeight?: number;
-      hardSubtitle?: boolean;
+      subtitleMode?: "none" | "hard" | "soft";
     };
     final?: {
       label?: string;
       targetWidth?: number;
       targetHeight?: number;
-      hardSubtitle?: boolean;
+      subtitleMode?: "none" | "hard" | "soft";
     };
   };
 };
@@ -68,6 +68,7 @@ export default function ExportPanel({
 }: ExportPanelProps) {
   const [selectedExportMode, setSelectedExportMode] = useState<ExportMode>("final");
   const [isExporting, setIsExporting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean | null>(null);
   const [capabilities, setCapabilities] = useState<ExportCapabilities | null>(null);
@@ -96,6 +97,19 @@ export default function ExportPanel({
     () => buildOutputFileNameFromSegments(segments, uploadedVideo?.fileName),
     [segments, uploadedVideo?.fileName]
   );
+  const activeProfile =
+    selectedExportMode === "fast" ? capabilities?.profiles?.fast : capabilities?.profiles?.final;
+  const encodeLabel = ffmpegAvailable
+    ? selectedExportMode === "fast"
+      ? "快速编码 · 不带字幕"
+      : capabilities?.hardwareAccelerated
+        ? activeProfile?.subtitleMode === "none"
+          ? "硬件编码 · 不带字幕"
+          : "硬件编码 + 字幕"
+        : activeProfile?.subtitleMode === "none"
+          ? "CPU 编码 · 不带字幕"
+          : "CPU 编码 + 字幕"
+    : "ffmpeg 未就绪";
 
   useEffect(() => {
     let mounted = true;
@@ -143,7 +157,7 @@ export default function ExportPanel({
           cache: "no-store"
         });
         const payload = (await response.json()) as {
-          status?: "queued" | "running" | "completed" | "failed";
+          status?: "queued" | "running" | "completed" | "failed" | "cancelled";
           progress?: number;
           stage?: string;
           error?: string;
@@ -190,10 +204,29 @@ export default function ExportPanel({
 
           window.setTimeout(() => {
             setIsExporting(false);
+            setIsCancelling(false);
             setJobId(null);
             setProgress(null);
             setExportStartedAt(null);
           }, 800);
+        }
+
+        if (payload.status === "cancelled") {
+          window.clearInterval(timer);
+          setProgress({
+            percent: Math.min(Math.max(payload.progress ?? 0, 0), 100),
+            stage: payload.stage || "导出已取消",
+            elapsedMs
+          });
+          setIsExporting(false);
+          setIsCancelling(false);
+          setJobId(null);
+          setExportStartedAt(null);
+
+          window.setTimeout(() => {
+            setProgress(null);
+          }, 800);
+          return;
         }
 
         if (payload.status === "failed") {
@@ -205,6 +238,7 @@ export default function ExportPanel({
           error instanceof Error ? error.message : "导出失败，请稍后重试。";
         setErrorMessage(message);
         setIsExporting(false);
+        setIsCancelling(false);
         setJobId(null);
         setProgress(null);
         setExportStartedAt(null);
@@ -223,6 +257,7 @@ export default function ExportPanel({
 
     setSelectedExportMode(exportMode);
     setIsExporting(true);
+    setIsCancelling(false);
     setErrorMessage("");
     setExportStartedAt(Date.now());
     setProgress({
@@ -261,6 +296,68 @@ export default function ExportPanel({
       setProgress(null);
       setExportStartedAt(null);
       setIsExporting(false);
+      setIsCancelling(false);
+    }
+  }
+
+  async function handleCancelExport() {
+    if (!jobId) {
+      return;
+    }
+
+    setIsCancelling(true);
+    setProgress((current) =>
+      current
+        ? {
+            ...current,
+            stage: "正在取消导出"
+          }
+        : {
+            percent: 0,
+            stage: "正在取消导出",
+            elapsedMs: exportStartedAt ? Date.now() - exportStartedAt : 0
+          }
+    );
+
+    try {
+      const response = await fetch(`/api/export?jobId=${encodeURIComponent(jobId)}`, {
+        method: "DELETE"
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        status?: "cancelled";
+        stage?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "取消导出失败，请稍后重试。");
+      }
+
+      setProgress((current) =>
+        current
+          ? {
+              ...current,
+              stage: payload.stage || "导出已取消"
+            }
+          : {
+              percent: 0,
+              stage: payload.stage || "导出已取消",
+              elapsedMs: 0
+            }
+      );
+      setIsExporting(false);
+      setIsCancelling(false);
+      setJobId(null);
+      setExportStartedAt(null);
+
+      window.setTimeout(() => {
+        setProgress(null);
+      }, 800);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "取消导出失败，请稍后重试。";
+      setErrorMessage(message);
+      setIsCancelling(false);
     }
   }
 
@@ -290,7 +387,9 @@ export default function ExportPanel({
           >
             {!uploadedVideo
               ? "请先上传视频"
-              : isExporting && selectedExportMode === "fast"
+              : isCancelling
+                ? "取消中..."
+                : isExporting && selectedExportMode === "fast"
                 ? "快速导出中..."
                 : "快速导出"}
           </button>
@@ -307,10 +406,22 @@ export default function ExportPanel({
           >
             {!uploadedVideo
               ? "请先上传视频"
-              : isExporting && selectedExportMode === "final"
+              : isCancelling
+                ? "取消中..."
+                : isExporting && selectedExportMode === "final"
                 ? "导出中..."
                 : "导出成片"}
           </button>
+          {isExporting ? (
+            <button
+              type="button"
+              disabled={isCancelling}
+              onClick={handleCancelExport}
+              className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-rose-100 disabled:bg-rose-50 disabled:text-rose-300"
+            >
+              {isCancelling ? "取消中..." : "取消导出"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -328,13 +439,7 @@ export default function ExportPanel({
               : "border border-amber-200 bg-amber-50 text-amber-700"
           }`}
         >
-          {ffmpegAvailable
-            ? selectedExportMode === "fast"
-              ? "快速编码"
-              : capabilities?.hardwareAccelerated
-                ? "硬件编码 + 硬字幕"
-                : "CPU 编码 + 硬字幕"
-            : "ffmpeg 未就绪"}
+          {encodeLabel}
         </span>
       </div>
 
