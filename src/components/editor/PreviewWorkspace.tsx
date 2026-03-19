@@ -13,11 +13,18 @@ type PreviewWorkspaceProps = {
   onVideoReady: (video: UploadedVideo | null) => void;
   segments: EditSegment[];
   subtitleFontSize: SubtitleFontSize;
+  onSubtitleFontSizeChange: (size: SubtitleFontSize) => void;
   playbackRate: number;
+  onPlaybackRateChange: (rate: number) => void;
   volumeGainDb: number;
+  onVolumeGainDbChange: (gain: number) => void;
   isGenerating: boolean;
   hasTranscript: boolean;
 };
+
+const subtitleSizeOptions: SubtitleFontSize[] = [16, 12, 8];
+const playbackRateOptions = [1, 1.25, 1.5, 1.75, 2];
+const volumeGainOptions = [0, 3, 6];
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) {
@@ -55,8 +62,11 @@ export default function PreviewWorkspace({
   onVideoReady,
   segments,
   subtitleFontSize,
+  onSubtitleFontSizeChange,
   playbackRate,
+  onPlaybackRateChange,
   volumeGainDb,
+  onVolumeGainDbChange,
   isGenerating,
   hasTranscript
 }: PreviewWorkspaceProps) {
@@ -222,6 +232,36 @@ export default function PreviewWorkspace({
     inputRef.current?.click();
   }
 
+  function renderControlGroup<T extends string | number>(
+    label: string,
+    values: T[],
+    currentValue: T,
+    formatter: (value: T) => string,
+    onChange: (value: T) => void
+  ) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white/92 p-2 shadow-sm backdrop-blur">
+        <div className="mb-1 text-[11px] font-medium text-slate-400">{label}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {values.map((value) => (
+            <button
+              key={`${label}-${String(value)}`}
+              type="button"
+              onClick={() => onChange(value)}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                currentValue === value
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {formatter(value)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="rounded-[22px] border border-black/6 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.03)]">
       <input
@@ -285,15 +325,30 @@ export default function PreviewWorkspace({
             </div>
           </div>
 
-          <div className="absolute right-4 top-4 flex flex-col gap-2 text-xs">
-            <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-slate-600">
-              倍速 {playbackRate.toFixed(1)}x
-            </div>
-            <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-slate-600">
-              音量 {100 + volumeGainDb * 10}%
-            </div>
-            <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-slate-600">
-              字幕大小 {subtitleFontSize}px
+          <div className="absolute right-4 top-4 flex w-[290px] max-w-[calc(100%-2rem)] flex-col gap-2">
+            {renderControlGroup(
+              "播放倍速",
+              playbackRateOptions,
+              playbackRate,
+              (value) => `${value}x`,
+              onPlaybackRateChange
+            )}
+            {renderControlGroup(
+              "音量增益",
+              volumeGainOptions,
+              volumeGainDb,
+              (value) => `+${value}dB`,
+              onVolumeGainDbChange
+            )}
+            {renderControlGroup(
+              "字幕大小",
+              subtitleSizeOptions,
+              subtitleFontSize,
+              (value) => `${value}px`,
+              onSubtitleFontSizeChange
+            )}
+            <div className="rounded-full border border-slate-200 bg-white/92 px-3 py-1.5 text-[11px] text-slate-600 shadow-sm backdrop-blur">
+              静音片段自动压低背景音：已启用
             </div>
           </div>
 
@@ -350,18 +405,6 @@ export default function PreviewWorkspace({
           <div className="mb-3 flex items-center justify-between text-xs text-slate-400">
             <span>00:00</span>
             <span>{formatDuration(uploadedVideo?.duration ?? timelineDuration)}</span>
-          </div>
-
-          <div className="mb-3 grid gap-2 md:grid-cols-3">
-            <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              停顿删除：预览中
-            </div>
-            <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              音量变化：预览中
-            </div>
-            <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              字幕样式：预览中
-            </div>
           </div>
 
           <div className="h-10 rounded-full bg-slate-100 p-1">

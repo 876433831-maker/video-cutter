@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import PreviewWorkspace from "@/components/editor/PreviewWorkspace";
-import VideoProcessingPanel from "@/components/editor/VideoProcessingPanel";
 import { buildSegmentGroups, getSuggestionStats } from "@/lib/transcript-editor";
 import type {
   SubtitleFontSize,
@@ -281,8 +280,11 @@ export default function EditorWorkspace() {
           onVideoReady={setUploadedVideo}
           segments={editSegments}
           subtitleFontSize={subtitleFontSize}
+          onSubtitleFontSizeChange={setSubtitleFontSize}
           playbackRate={playbackRate}
+          onPlaybackRateChange={setPlaybackRate}
           volumeGainDb={volumeGainDb}
+          onVolumeGainDbChange={setVolumeGainDb}
           isGenerating={isGenerating}
           hasTranscript={Boolean(result)}
         />
@@ -321,24 +323,12 @@ export default function EditorWorkspace() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-        <VideoProcessingPanel
-          disabled={!result}
+      <div className="lg:sticky lg:top-[72px]">
+        <ExportPanel
+          uploadedVideo={uploadedVideo}
+          segments={editSegments}
           subtitleFontSize={subtitleFontSize}
-          onSubtitleFontSizeChange={setSubtitleFontSize}
-          playbackRate={playbackRate}
-          onPlaybackRateChange={setPlaybackRate}
-          volumeGainDb={volumeGainDb}
-          onVolumeGainDbChange={setVolumeGainDb}
         />
-
-        <div className="lg:sticky lg:top-[72px]">
-          <ExportPanel
-            uploadedVideo={uploadedVideo}
-            segments={editSegments}
-            subtitleFontSize={subtitleFontSize}
-          />
-        </div>
       </div>
     </div>
   );
