@@ -12,6 +12,7 @@ import type {
 } from "@/lib/video-edit-types";
 import {
   analyzeTranscriptSegments,
+  getTextCleanupRanges,
   isFillerLikeText,
   normalizeText
 } from "./transcript-analysis";
@@ -88,57 +89,58 @@ function splitEditableTextSegment(params: {
 }) {
   const { segment, action, reason } = params;
 
-  if (segment.words && segment.words.length > 0) {
-    const words = segment.words
-      .filter((word) => word.text.length > 0)
-      .flatMap((word) => {
-        const chars = Array.from(word.text);
-        const duration = Math.max(word.end - word.start, 0.05);
-        const unitDuration = duration / Math.max(chars.length, 1);
+  const characters =
+    segment.words && segment.words.length > 0
+      ? segment.words
+          .filter((word) => word.text.length > 0)
+          .flatMap((word) => {
+            const chars = Array.from(word.text);
+            const duration = Math.max(word.end - word.start, 0.05);
+            const unitDuration = duration / Math.max(chars.length, 1);
 
-        return chars.map((character, index) => ({
-          character,
-          start: word.start + unitDuration * index,
-          end: word.start + unitDuration * (index + 1)
-        }));
-      });
+            return chars.map((character, index) => ({
+              character,
+              start: word.start + unitDuration * index,
+              end: word.start + unitDuration * (index + 1)
+            }));
+          })
+      : Array.from(segment.text).map((character, index, chars) => {
+          const duration = Math.max(segment.end - segment.start, 0.1);
+          const unitDuration = duration / Math.max(chars.length, 1);
 
-    return words.map((word, index) => ({
+          return {
+            character,
+            start: segment.start + unitDuration * index,
+            end: segment.start + unitDuration * (index + 1)
+          };
+        });
+  const cleanupRanges = action === "keep" ? getTextCleanupRanges(
+    characters.map((item) => item.character).join("")
+  ) : [];
+
+  return characters.map((character, index) => {
+    const cleanupRange = cleanupRanges.find(
+      (range) => index >= range.start && index < range.end
+    );
+    const unitAction = cleanupRange ? "remove" : action;
+    const unitReason = cleanupRange?.reason ?? reason;
+
+    return {
       id: `${segment.id}-char-${index + 1}`,
       groupId: `edit-${segment.id}`,
       unitIndex: index,
-      unitCount: words.length,
-      start: word.start,
-      end: word.end,
-      text: word.character,
-      originalText: word.character,
-      action,
-      suggestedAction: action === "remove" ? "remove" : "keep",
-      reason,
+      unitCount: characters.length,
+      start: character.start,
+      end: character.end,
+      text: character.character,
+      originalText: character.character,
+      action: unitAction,
+      suggestedAction: cleanupRange || action === "remove" ? "remove" : "keep",
+      reason: unitReason,
       speed: 1.5,
       volumeGainDb: 3
-    })) satisfies EditSegment[];
-  }
-
-  const chars = Array.from(segment.text);
-  const duration = Math.max(segment.end - segment.start, 0.1);
-  const unitDuration = duration / Math.max(chars.length, 1);
-
-  return chars.map((character, index) => ({
-    id: `${segment.id}-char-${index + 1}`,
-    groupId: `edit-${segment.id}`,
-    unitIndex: index,
-    unitCount: chars.length,
-    start: segment.start + unitDuration * index,
-    end: segment.start + unitDuration * (index + 1),
-    text: character,
-    originalText: character,
-    action,
-    suggestedAction: action === "remove" ? "remove" : "keep",
-    reason,
-    speed: 1.5,
-    volumeGainDb: 3
-  })) satisfies EditSegment[];
+    } satisfies EditSegment;
+  });
 }
 
 function buildMockTranscript(duration: number) {

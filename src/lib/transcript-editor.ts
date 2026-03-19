@@ -15,10 +15,31 @@ export const reasonLabels: Record<EditReason, string> = {
   content: "正文",
   pause: "停顿",
   filler: "语气词",
+  repeat: "重复片段",
+  redundant: "绕句废话",
   breath: "气口",
   noise: "噪音",
   manual: "手动"
 };
+
+export function composeSegmentText(
+  segments: EditSegment[],
+  options?: {
+    respectBreaks?: boolean;
+  }
+) {
+  const respectBreaks = options?.respectBreaks ?? false;
+
+  return segments.reduce((combined, segment) => {
+    const nextText = combined + segment.text;
+
+    if (respectBreaks && segment.breakAfter) {
+      return `${nextText}\n`;
+    }
+
+    return nextText;
+  }, "");
+}
 
 export function buildSegmentGroups(segments: EditSegment[]) {
   const groups = new Map<string, EditSegment[]>();
@@ -44,7 +65,7 @@ export function buildSegmentGroups(segments: EditSegment[]) {
         segments: orderedSegments,
         start: first.start,
         end: last.end,
-        text: orderedSegments.map((segment) => segment.text).join(""),
+        text: composeSegmentText(orderedSegments, { respectBreaks: true }),
         removedCount: orderedSegments.filter((segment) => segment.action === "remove")
           .length,
         suggestedRemoval: orderedSegments.some(

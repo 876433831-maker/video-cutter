@@ -25,6 +25,8 @@ export type EditReason =
   | "content"
   | "pause"
   | "filler"
+  | "repeat"
+  | "redundant"
   | "breath"
   | "noise"
   | "manual";
@@ -34,6 +36,7 @@ export type EditSegment = {
   groupId?: string;
   unitIndex?: number;
   unitCount?: number;
+  breakAfter?: boolean;
   start: number;
   end: number;
   text: string;
